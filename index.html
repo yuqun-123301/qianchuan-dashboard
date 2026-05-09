@@ -936,8 +936,15 @@ function refreshAll() {
   ring('ring-zy', MONTH_ZY, TGT_ZY, BGT_ZY, '#69f0ae',
     `<div class="rm-row"><span class="rm-key">实际消耗</span><span class="rm-val c-green">${W(MONTH_COST)}</span></div>
      <div class="rm-row"><span class="rm-key">综合ROI</span><span class="rm-val c-yellow">${MONTH_ROI}</span></div>`);
+  // 达人进度：综合ROI = 已完成 / 预算
+  const MONTH_DR_COST = daily.reduce((s,r)=>s+r.drC,0);
+  const DR_ROI = MONTH_DR_COST>0?(MONTH_DR/MONTH_DR_COST).toFixed(2):'-';
   ring('ring-dr', MONTH_DR, TGT_DR, BGT_DR, '#ff7070',
-    `<div class="rm-row"><span class="rm-key">还需成交</span><span class="rm-val c-orange">${MONTH_DR>=TGT_DR?'已达标':W(TGT_DR-MONTH_DR)}</span></div>`);
+    `<div class="rm-row"><span class="rm-key">实际消耗</span><span class="rm-val c-green">${W(MONTH_DR_COST)}</span></div>
+     <div class="rm-row"><span class="rm-key">综合ROI</span><span class="rm-val c-yellow">${DR_ROI}</span></div>`);
+
+  window._MONTH_DR_COST = MONTH_DR_COST;
+  window._DR_ROI = DR_ROI;
 
   // ---- 趋势图 ----
   destroyChart('trend');
