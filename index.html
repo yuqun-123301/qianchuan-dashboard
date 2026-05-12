@@ -447,35 +447,32 @@ tbody tr:hover { background:#1a1e30; }
           </div>
         </div>
 
-        <!-- 达人数据 -->
+        <!-- 达人汇总 -->
         <div class="form-section">
-          <div class="form-section-title">⭐ 达人数据</div>
+          <div class="form-section-title">⭐ 达人汇总数据（自动汇总）</div>
           <div class="form-row cols2">
             <div class="form-group">
-              <label>达人成交金额（元）</label>
-              <input type="number" id="inp-dr-gmv" placeholder="如：25800" min="0" step="0.01">
+              <label>达人总成交（元）</label>
+              <input type="number" id="inp-dr-gmv" placeholder="自动汇总" min="0" step="0.01" readonly style="opacity:.6;cursor:not-allowed">
             </div>
             <div class="form-group">
-              <label>达人消耗金额（元，可选）</label>
-              <input type="number" id="inp-dr-cost" placeholder="如：9800" min="0" step="0.01">
+              <label>达人消耗金额（元）</label>
+              <input type="number" id="inp-dr-cost" placeholder="手动录入" min="0" step="0.01">
             </div>
           </div>
         </div>
 
         <!-- 自营汇总 -->
         <div class="form-section">
-          <div class="form-section-title">🏪 自营汇总数据（自动汇总，可手动覆盖）</div>
-          <div class="form-row cols3">
+          <div class="form-section-title">🏪 自营汇总数据（自动汇总）</div>
+          <div class="form-row cols2">
             <div class="form-group">
               <label>自营总成交（元）</label>
               <input type="number" id="inp-zy-gmv-total" placeholder="自动汇总" min="0" step="0.01" readonly style="opacity:.6;cursor:not-allowed">
             </div>
             <div class="form-group">
               <label>自营总消耗（元）</label>
-              <input type="number" id="inp-zy-cost-total" placeholder="自动汇总" min="0" step="0.01" readonly style="opacity:.6;cursor:not-allowed">
-            </div>
-            <div class="form-group" style="justify-content:flex-end;padding-top:18px">
-              <div id="zy-roi-preview" style="font-size:12px;color:#ffd740"></div>
+              <input type="number" id="inp-zy-cost-total" placeholder="手动录入" min="0" step="0.01">
             </div>
           </div>
         </div>
@@ -1325,8 +1322,8 @@ document.addEventListener('DOMContentLoaded', () => {
   buildProdGrid('prod-dr-gmv-grid', 'dr-gmv');
 
   document.getElementById('inp-date').addEventListener('change', onDateChange);
-  document.getElementById('inp-dr-gmv').addEventListener('input', updateTotalPreview);
-  document.getElementById('inp-dr-cost').addEventListener('input', updateTotalPreview);
+  document.getElementById('inp-dr-cost').addEventListener('input', onProdInput);
+  document.getElementById('inp-zy-cost-total').addEventListener('input', onProdInput);
 
   // 恢复当前月份设置
   const savedTgt = loadTargets();
@@ -1348,8 +1345,8 @@ function onDateChange() {
 
   if(extra[d]) {
     const ex = extra[d];
-    document.getElementById('inp-dr-gmv').value = ex.drGmv||'';
     document.getElementById('inp-dr-cost').value = ex.drCost||'';
+    document.getElementById('inp-zy-cost-total').value = ex.zyCost||'';
     document.getElementById('inp-total-gmv').value = ex.totalGmv||'';
     document.getElementById('inp-total-cost').value = ex.totalCost||'';
     PRODS.forEach(p => {
@@ -1366,8 +1363,8 @@ function onDateChange() {
       const c=document.getElementById(`cost-${p}`);
       if(c) c.value = baseCost[d]?.[p]||'';
     });
-    document.getElementById('inp-dr-gmv').value = '';
     document.getElementById('inp-dr-cost').value = '';
+    document.getElementById('inp-zy-cost-total').value = '';
     document.getElementById('inp-total-gmv').value = baseTotal[d]||'';
     document.getElementById('inp-total-cost').value = '';
     status.innerHTML = '🟡 <span style="color:#ffd740">历史基础数据，可新增达人数据</span>';
@@ -1380,13 +1377,22 @@ function onDateChange() {
 }
 
 function onProdInput() {
-  let gmvSum=0;
-  PRODS.forEach(p=>{
-    gmvSum += +(document.getElementById(`gmv-${p}`)?.value||0);
+  let zyGmvSum = 0, drGmvSum = 0;
+  PRODS.forEach(p => {
+    zyGmvSum += +(document.getElementById(`gmv-${p}`)?.value || 0);
+    drGmvSum += +(document.getElementById(`dr-gmv-${p}`)?.value || 0);
   });
-  document.getElementById('inp-zy-gmv-total').value  = gmvSum.toFixed(2);
-  // 自营消耗来自 BASE_ZY_COST，不在录入弹窗维护，只显示成交ROI暂不计算
-  document.getElementById('zy-roi-preview').textContent = '';
+  document.getElementById('inp-zy-gmv-total').value = zyGmvSum.toFixed(2);
+  document.getElementById('inp-dr-gmv').value = drGmvSum.toFixed(2);
+  // 千川后台总成交/总消耗自动计算
+  const zyCost = +(document.getElementById('inp-zy-cost-total')?.value || 0);
+  const drCost = +(document.getElementById('inp-dr-cost')?.value || 0);
+  if (zyGmvSum + drGmvSum > 0) {
+    document.getElementById('inp-total-gmv').value = (zyGmvSum + drGmvSum).toFixed(2);
+  }
+  if (zyCost + drCost > 0) {
+    document.getElementById('inp-total-cost').value = (zyCost + drCost).toFixed(2);
+  }
   updateTotalPreview();
 }
 
@@ -1395,21 +1401,21 @@ function updateTotalPreview() {
   const drGmv  = +(document.getElementById('inp-dr-gmv')?.value||0);
   const zyCost = +(document.getElementById('inp-zy-cost-total')?.value||0);
   const drCost = +(document.getElementById('inp-dr-cost')?.value||0);
-  const manualTotal     = +(document.getElementById('inp-total-gmv')?.value||0);
-  const manualTotalCost = +(document.getElementById('inp-total-cost')?.value||0);
+  const totalGmv  = +(document.getElementById('inp-total-gmv')?.value||0);
+  const totalCost = +(document.getElementById('inp-total-cost')?.value||0);
 
   // 总成交预览
-  if(manualTotal>0){
-    document.getElementById('total-preview').textContent = `后台总成交: ¥${num(manualTotal)}`;
+  const autoGmv = zyGmv + drGmv;
+  if(totalGmv > 0){
+    document.getElementById('total-preview').textContent = `后台总成交: ¥${num(totalGmv)} (自动: ¥${num(autoGmv)})`;
   } else {
-    const auto = zyGmv+drGmv;
-    document.getElementById('total-preview').textContent = auto>0?`自动合计: ¥${num(auto)}`:'';
+    document.getElementById('total-preview').textContent = autoGmv>0?`自动合计: ¥${num(autoGmv)}`:'';
   }
   // 总消耗预览
-  if(manualTotalCost>0){
-    document.getElementById('total-cost-preview').textContent = `后台总消耗: ¥${num(manualTotalCost)}`;
+  const autoCost = zyCost + drCost;
+  if(totalCost > 0){
+    document.getElementById('total-cost-preview').textContent = `后台总消耗: ¥${num(totalCost)} (自动: ¥${num(autoCost)})`;
   } else {
-    const autoCost = zyCost+drCost;
     document.getElementById('total-cost-preview').textContent = autoCost>0?`自动合计: ¥${num(autoCost)}`:'';
   }
 }
@@ -1441,19 +1447,22 @@ function saveEntry() {
   if(!d){ showToast('请先选择日期', true); return; }
 
   const prods={}, drProds={}, costs={};
+  let zyGmvSum = 0, drGmvSum = 0;
   PRODS.forEach(p=>{
     prods[p]   = +(document.getElementById(`gmv-${p}`)?.value||0);
     drProds[p] = +(document.getElementById(`dr-gmv-${p}`)?.value||0);
+    zyGmvSum += prods[p];
+    drGmvSum += drProds[p];
     const c=document.getElementById(`cost-${p}`);
     if(c) costs[p] = +(c.value||0);
   });
 
-  const drGmv     = +(document.getElementById('inp-dr-gmv').value||0);
   const drCost    = +(document.getElementById('inp-dr-cost').value||0);
+  const zyCost    = +(document.getElementById('inp-zy-cost-total').value||0);
   const totalGmv  = +(document.getElementById('inp-total-gmv').value||0);
   const totalCost = +(document.getElementById('inp-total-cost').value||0);
 
-  const entry = { drGmv, drCost, prods, drProds, costs };
+  const entry = { drGmv: drGmvSum, drCost, zyCost, prods, drProds, costs };
   if(totalGmv>0)  entry.totalGmv  = totalGmv;
   if(totalCost>0) entry.totalCost = totalCost;
   entry._savedAt = new Date().toLocaleString('zh-CN');
