@@ -798,18 +798,24 @@ function buildDaily() {
     return !!(baseGmv[d] || baseCost[d] || extra[d] || baseTotal[d]);
   }).map(d => {
     const ex = extra[d] || null;
+    // 自营成交：优先取录入的prods，否则取基础数据
     const zyGmvObj = ex?.prods ? ex.prods : (baseGmv[d] || {});
-    const zyCostObj = ex?.costs ? ex.costs : (baseCost[d] || {});
     const zyG = sumObj(zyGmvObj);
+    // 自营消耗：优先取录入的costs，否则取基础数据
+    const zyCostObj = ex?.costs ? ex.costs : (baseCost[d] || {});
     const zyC = sumObj(zyCostObj);
-    let drG = 0, drC = 0;
-    if(ex) {
-      drG = +(ex.drGmv||0);
-      drC = +(ex.drCost||0);
+    // 达人成交：优先取录入的drProds之和，否则取drGmv字段，否则从总成交反推
+    let drG = 0;
+    if(ex?.drProds) {
+      drG = sumObj(ex.drProds);
+    } else if(ex?.drGmv) {
+      drG = +(ex.drGmv);
     } else {
       const totImg = baseTotal[d] || zyG;
       drG = Math.max(0, totImg - zyG);
     }
+    // 达人消耗：优先取录入的drCost，否则为0
+    const drC = ex?.drCost ? +(ex.drCost) : 0;
     const totG = zyG + drG;
     const roi = zyC > 0 ? (zyG/zyC).toFixed(2) : '-';
     return { d, zyG, zyC, drG, drC, totG, roi, zyGmvObj, zyCostObj, isNew: !!ex };
@@ -852,14 +858,17 @@ function refreshAll() {
     const zyG = rows.reduce((s,r)=>s+r.zyG,0);
     const drG = rows.reduce((s,r)=>s+r.drG,0);
     const zyC = rows.reduce((s,r)=>s+r.zyC,0);
-    return {label:w.label, zyG, drG, tot:zyG+drG, zyC, roi:zyC>0?(zyG/zyC).toFixed(2):'-'};
+    const drC = rows.reduce((s,r)=>s+r.drC,0);
+    return {label:w.label, zyG, drG, tot:zyG+drG, zyC, drC, roi:zyC>0?(zyG/zyC).toFixed(2):'-', drRoi:drC>0?(drG/drC).toFixed(2):'-'};
   });
 
   const MONTH_ZY  = daily.reduce((s,r)=>s+r.zyG, 0);
   const MONTH_DR  = daily.reduce((s,r)=>s+r.drG, 0);
   const MONTH_TOT = MONTH_ZY + MONTH_DR;
-  const MONTH_COST= daily.reduce((s,r)=>s+r.zyC, 0);
-  const MONTH_ROI = MONTH_COST>0?(MONTH_ZY/MONTH_COST).toFixed(2):'-';
+  const MONTH_ZY_COST = daily.reduce((s,r)=>s+r.zyC, 0);
+  const MONTH_DR_COST = daily.reduce((s,r)=>s+r.drC, 0);
+  const MONTH_COST = MONTH_ZY_COST + MONTH_DR_COST;
+  const MONTH_ROI = MONTH_ZY_COST>0?(MONTH_ZY/MONTH_ZY_COST).toFixed(2):'-';
 
   const prodTotals = {};
   PRODS.forEach(p => { prodTotals[p] = daily.reduce((s,r)=>s+(r.zyGmvObj?.[p]||0),0); });
@@ -883,28 +892,34 @@ function refreshAll() {
     <div class="kpi c1">
       <div class="kpi-label">${mn}总成交（合计）</div>
       <div class="kpi-val">${W(MONTH_TOT)}</div>
-      <div class="kpi-sub">自营+达人 · ROI均值 ${MONTH_ROI}</div>
+      <div class="kpi-sub">自营+达人 · 总消耗${W(MONTH_COST)}</div>
       <div class="kpi-bar"><div class="kpi-fill" style="width:100%"></div></div>
     </div>
     <div class="kpi c2">
       <div class="kpi-label">自营成交 目标${W(TGT_ZY)}</div>
       <div class="kpi-val">${W(MONTH_ZY)}</div>
-      <div class="kpi-sub">完成率 ${zyPct}% · 消耗${W(MONTH_COST)}</div>
+      <div class="kpi-sub">完成率 ${zyPct}% · 消耗${W(MONTH_ZY_COST)}</div>
       <div class="kpi-bar"><div class="kpi-fill" style="width:${Math.min(parseFloat(zyPct),100)}%"></div></div>
     </div>
     <div class="kpi c3">
       <div class="kpi-label">达人成交 目标${W(TGT_DR)}</div>
       <div class="kpi-val">${W(MONTH_DR)}</div>
-      <div class="kpi-sub">完成率 ${drPct}% · 预算${W(BGT_DR)}</div>
+      <div class="kpi-sub">完成率 ${drPct}% · 消耗${W(MONTH_DR_COST)}</div>
       <div class="kpi-bar"><div class="kpi-fill" style="width:${Math.min(parseFloat(drPct),100)}%"></div></div>
     </div>
     <div class="kpi c4">
       <div class="kpi-label">自营综合ROI</div>
       <div class="kpi-val">${MONTH_ROI}</div>
-      <div class="kpi-sub">消耗${W(MONTH_COST)} / 产出${W(MONTH_ZY)}</div>
+      <div class="kpi-sub">消耗${W(MONTH_ZY_COST)} / 产出${W(MONTH_ZY)}</div>
       <div class="kpi-bar"><div class="kpi-fill" style="width:${Math.min((parseFloat(MONTH_ROI)/3)*100,100)}%"></div></div>
     </div>
     <div class="kpi c5">
+      <div class="kpi-label">达人综合ROI</div>
+      <div class="kpi-val">${MONTH_DR_COST>0?(MONTH_DR/MONTH_DR_COST).toFixed(2):'-'}</div>
+      <div class="kpi-sub">消耗${W(MONTH_DR_COST)} / 产出${W(MONTH_DR)}</div>
+      <div class="kpi-bar"><div class="kpi-fill" style="width:${Math.min((MONTH_DR_COST>0?(MONTH_DR/MONTH_DR_COST):0)/3*100,100)}%"></div></div>
+    </div>
+    <div class="kpi c6">
       <div class="kpi-label">自营/达人 结构</div>
       <div class="kpi-val">${MONTH_TOT>0?(MONTH_ZY/MONTH_TOT*100).toFixed(0):'-'}%/${MONTH_TOT>0?(MONTH_DR/MONTH_TOT*100).toFixed(0):'-'}%</div>
       <div class="kpi-sub">截至 ${lastDate}</div>
@@ -939,18 +954,17 @@ function refreshAll() {
         <div class="rm-row"><span class="rm-key">状态</span><span class="rm-val">${status}</span></div>
       </div>`;
   }
-  ring('ring-zy', MONTH_ZY, TGT_ZY, BGT_ZY, '#69f0ae',
-    `<div class="rm-row"><span class="rm-key">实际消耗</span><span class="rm-val c-green">${W(MONTH_COST)}</span></div>
-     <div class="rm-row"><span class="rm-key">综合ROI</span><span class="rm-val c-yellow">${MONTH_ROI}</span></div>`);
-  // 达人进度：综合ROI = 已完成 / 预算
-  const MONTH_DR_COST = daily.reduce((s,r)=>s+r.drC,0);
   const DR_ROI = MONTH_DR_COST>0?(MONTH_DR/MONTH_DR_COST).toFixed(2):'-';
+  ring('ring-zy', MONTH_ZY, TGT_ZY, BGT_ZY, '#69f0ae',
+    `<div class="rm-row"><span class="rm-key">实际消耗</span><span class="rm-val c-green">${W(MONTH_ZY_COST)}</span></div>
+     <div class="rm-row"><span class="rm-key">综合ROI</span><span class="rm-val c-yellow">${MONTH_ROI}</span></div>`);
   ring('ring-dr', MONTH_DR, TGT_DR, BGT_DR, '#ff7070',
     `<div class="rm-row"><span class="rm-key">实际消耗</span><span class="rm-val c-green">${W(MONTH_DR_COST)}</span></div>
      <div class="rm-row"><span class="rm-key">综合ROI</span><span class="rm-val c-yellow">${DR_ROI}</span></div>`);
 
   window._MONTH_DR_COST = MONTH_DR_COST;
   window._DR_ROI = DR_ROI;
+  window._MONTH_ZY_COST = MONTH_ZY_COST;
 
   // ---- 趋势图 ----
   destroyChart('trend');
@@ -1117,7 +1131,7 @@ function renderTbl(type){
     weeks.forEach((w,i)=>w.dates.forEach(d=>wkMap[d]=i));
     let rows=`<table><thead><tr>
       <th>日期</th><th>自营成交</th><th>达人成交</th><th>合计成交</th>
-      <th>自营占比</th><th>达人占比</th><th>自营消耗</th><th>自营ROI</th>
+      <th>自营占比</th><th>达人占比</th><th>自营消耗</th><th>达人消耗</th><th>自营ROI</th><th>达人ROI</th>
       <th>自营累计</th><th>自营进度</th><th>达人累计</th><th>达人进度</th>
     </tr></thead><tbody>`;
     daily.forEach(r=>{
@@ -1139,14 +1153,15 @@ function renderTbl(type){
       const dp=r.totG>0?(r.drG/r.totG*100).toFixed(1):'0';
       const zprog=(cumZ/TGT_ZY*100).toFixed(1);
       const dprog=(cumD/TGT_DR*100).toFixed(1);
+      const drRoi=r.drC>0?(r.drG/r.drC).toFixed(2):'-';
       const newMark=r.isNew?'<span class="new-badge"></span>':'';
       rows+=`<tr>
         <td class="c-blue">${r.d}${newMark}</td>
         <td>¥${W(r.zyG)}</td><td>¥${W(r.drG)}</td>
         <td class="c-yellow">¥${W(r.totG)}</td>
         <td>${zp}%</td><td>${dp}%</td>
-        <td>¥${W(r.zyC)}</td>
-        <td class="c-green">${r.roi}</td>
+        <td>¥${W(r.zyC)}</td><td>¥${W(r.drC)}</td>
+        <td class="c-green">${r.roi}</td><td class="c-red">${drRoi}</td>
         <td class="c-green">¥${W(cumZ)}</td>
         <td>${zprog>=100?'<span class="pill pill-g">'+zprog+'%</span>':'<span class="pill pill-b">'+zprog+'%</span>'}</td>
         <td class="c-red">¥${W(cumD)}</td>
@@ -1159,7 +1174,8 @@ function renderTbl(type){
       <td class="c-yellow">¥${W(MONTH_TOT)}</td>
       <td>${MONTH_TOT>0?(MONTH_ZY/MONTH_TOT*100).toFixed(1):0}%</td>
       <td>${MONTH_TOT>0?(MONTH_DR/MONTH_TOT*100).toFixed(1):0}%</td>
-      <td>¥${W(MONTH_COST)}</td><td class="c-green">${MONTH_ROI}</td>
+      <td>¥${W(window._MONTH_ZY_COST||0)}</td><td>¥${W(window._MONTH_DR_COST||0)}</td>
+      <td class="c-green">${MONTH_ROI}</td><td class="c-red">${window._DR_ROI||'-'}</td>
       <td>-</td><td><span class="pill ${parseFloat(zyPct)>=100?'pill-g':'pill-b'}">${zyPct}%</span></td>
       <td>-</td><td><span class="pill ${parseFloat(drPct)>=100?'pill-g':'pill-y'}">${drPct}%</span></td>
     </tr></tbody></table>`;
@@ -1169,7 +1185,7 @@ function renderTbl(type){
     let cumZ=0,cumD=0;
     let rows=`<table><thead><tr>
       <th>周期</th><th>自营成交</th><th>达人成交</th><th>合计成交</th>
-      <th>自营占比</th><th>达人占比</th><th>自营消耗</th><th>自营ROI</th>
+      <th>自营占比</th><th>达人占比</th><th>自营消耗</th><th>达人消耗</th><th>自营ROI</th><th>达人ROI</th>
       <th>自营累计进度</th><th>达人累计进度</th>
     </tr></thead><tbody>`;
     weekData.forEach(w=>{
@@ -1180,7 +1196,7 @@ function renderTbl(type){
         <td class="c-yellow">¥${W(w.tot)}</td>
         <td>${w.tot>0?(w.zyG/w.tot*100).toFixed(1):'0'}%</td>
         <td>${w.tot>0?(w.drG/w.tot*100).toFixed(1):'0'}%</td>
-        <td>¥${W(w.zyC)}</td><td class="c-green">${w.roi}</td>
+        <td>¥${W(w.zyC)}</td><td>¥${W(w.drC)}</td><td class="c-green">${w.roi}</td><td class="c-red">${w.drRoi}</td>
         <td><span class="pill pill-b">${(cumZ/TGT_ZY*100).toFixed(1)}%</span></td>
         <td><span class="pill pill-y">${(cumD/TGT_DR*100).toFixed(1)}%</span></td>
       </tr>`;
@@ -1191,7 +1207,7 @@ function renderTbl(type){
       <td class="c-yellow">¥${W(MONTH_TOT)}</td>
       <td>${MONTH_TOT>0?(MONTH_ZY/MONTH_TOT*100).toFixed(1):0}%</td>
       <td>${MONTH_TOT>0?(MONTH_DR/MONTH_TOT*100).toFixed(1):0}%</td>
-      <td>¥${W(MONTH_COST)}</td><td class="c-green">${MONTH_ROI}</td>
+      <td>¥${W(MONTH_ZY_COST)}</td><td>¥${W(MONTH_DR_COST)}</td><td class="c-green">${MONTH_ROI}</td><td class="c-red">${DR_ROI}</td>
       <td><span class="pill ${parseFloat(zyPct)>=100?'pill-g':'pill-b'}">${zyPct}%</span></td>
       <td><span class="pill ${parseFloat(drPct)>=100?'pill-g':'pill-y'}">${drPct}%</span></td>
     </tr></tbody></table>`;
