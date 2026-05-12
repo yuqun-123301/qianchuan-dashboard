@@ -801,9 +801,15 @@ function buildDaily() {
     // 自营成交：优先取录入的prods，否则取基础数据
     const zyGmvObj = ex?.prods ? ex.prods : (baseGmv[d] || {});
     const zyG = sumObj(zyGmvObj);
-    // 自营消耗：优先取录入的costs，否则取基础数据
-    const zyCostObj = ex?.costs ? ex.costs : (baseCost[d] || {});
-    const zyC = sumObj(zyCostObj);
+    // 自营消耗：优先取录入的zyCost（总消耗），否则取各产品costs之和，否则取基础数据
+    let zyC = 0;
+    if (ex?.zyCost) {
+      zyC = +(ex.zyCost);
+    } else if (ex?.costs) {
+      zyC = sumObj(ex.costs);
+    } else {
+      zyC = sumObj(baseCost[d] || {});
+    }
     // 达人成交：优先取录入的drProds之和，否则取drGmv字段，否则从总成交反推
     let drG = 0;
     if(ex?.drProds) {
@@ -818,7 +824,7 @@ function buildDaily() {
     const drC = ex?.drCost ? +(ex.drCost) : 0;
     const totG = zyG + drG;
     const roi = zyC > 0 ? (zyG/zyC).toFixed(2) : '-';
-    return { d, zyG, zyC, drG, drC, totG, roi, zyGmvObj, zyCostObj, isNew: !!ex };
+    return { d, zyG, zyC, drG, drC, totG, roi, zyGmvObj, isNew: !!ex };
   });
 }
 
