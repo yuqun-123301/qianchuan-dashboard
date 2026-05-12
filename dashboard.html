@@ -1,0 +1,1634 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>千川短视频投放 · 月度指标动态看板</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
+body { font-family:'PingFang SC','Microsoft YaHei',sans-serif; background:#0d0f1a; color:#e0e6f0; min-width:900px; }
+
+/* ===== 月份切换器 ===== */
+.month-selector {
+  background:linear-gradient(135deg,#141728 0%,#1a1f36 100%);
+  border-bottom:1px solid #252a45;
+  padding:12px 28px;
+  display:flex;
+  align-items:center;
+  gap:14px;
+  flex-shrink:0;
+}
+.month-selector .ms-label {
+  font-size:12px;
+  color:#6b7a99;
+  display:flex;
+  align-items:center;
+  gap:6px;
+}
+.month-selector .ms-icon { font-size:14px; }
+.month-select {
+  background:#0d0f1a;
+  border:1px solid #2a3560;
+  border-radius:8px;
+  padding:8px 36px 8px 14px;
+  color:#e0e6f0;
+  font-size:14px;
+  font-weight:700;
+  font-family:inherit;
+  cursor:pointer;
+  outline:none;
+  appearance:none;
+  -webkit-appearance:none;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%236b7a99' d='M6 8L2 4h8z'/%3E%3C/svg%3E");
+  background-repeat:no-repeat;
+  background-position:calc(100% - 10px) center;
+  transition:.2s;
+  min-width:100px;
+}
+.month-select:hover, .month-select:focus { border-color:#448aff; box-shadow:0 0 0 2px rgba(68,138,255,.15); }
+.month-select option { background:#141728; color:#e0e6f0; padding:8px; }
+.month-select option.has-base { color:#64b5f6; }
+.month-select option.has-extra { color:#69f0ae; font-weight:700; }
+
+.ms-dots { display:flex; gap:6px; align-items:center; }
+.ms-dot { width:8px; height:8px; border-radius:50%; }
+.ms-dot-blue { background:#448aff; }
+.ms-dot-green { background:#69f0ae; box-shadow:0 0 6px rgba(105,240,174,.5); }
+.ms-tip { font-size:11px; color:#3a4260; }
+
+/* ===== 头部 ===== */
+.header { background:#0d0f1a; padding:16px 28px 14px; border-bottom:1px solid #1a1e30; display:flex; align-items:center; justify-content:space-between; }
+.header-left h1 { font-size:20px; font-weight:700; color:#fff; letter-spacing:.5px; }
+.header-left .sub { font-size:12px; color:#4a5580; margin-top:4px; }
+.header-right { display:flex; gap:10px; align-items:center; }
+.badge { display:inline-flex; align-items:center; gap:5px; padding:5px 12px; border-radius:20px; font-size:12px; font-weight:600; }
+.badge-blue   { background:rgba(68,138,255,.15); color:#64b5f6; border:1px solid rgba(68,138,255,.3); }
+.badge-orange { background:rgba(255,152,0,.15); color:#ffb74d; border:1px solid rgba(255,152,0,.3); }
+.badge-green  { background:rgba(0,200,83,.15); color:#69f0ae; border:1px solid rgba(0,200,83,.3); }
+.badge-gray   { background:#1e2540; color:#4a5580; border:1px solid #252a45; }
+
+.btn-input { display:inline-flex; align-items:center; gap:6px; padding:8px 16px; border-radius:8px; font-size:13px; font-weight:700; cursor:pointer; border:none; transition:all .2s; font-family:inherit; }
+.btn-input-main { background:linear-gradient(135deg,#448aff,#6200ea); color:#fff; box-shadow:0 2px 12px rgba(68,138,255,.4); }
+.btn-input-main:hover { transform:translateY(-1px); box-shadow:0 4px 18px rgba(68,138,255,.55); }
+.btn-input-empty { background:#1e2540; color:#4a5580; border:1px solid #252a45; font-size:12px; padding:8px 14px; }
+
+/* KPI */
+.kpi-row { display:grid; grid-template-columns:repeat(5,1fr); gap:12px; padding:18px 28px; }
+.kpi { background:#141728; border-radius:12px; padding:16px 18px; border:1px solid #252a45; position:relative; overflow:hidden; }
+.kpi::after { content:''; position:absolute; top:0; left:0; right:0; height:3px; border-radius:12px 12px 0 0; }
+.kpi.c1::after { background:linear-gradient(90deg,#448aff,#82b1ff); }
+.kpi.c2::after { background:linear-gradient(90deg,#00c853,#69f0ae); }
+.kpi.c3::after { background:linear-gradient(90deg,#ff5252,#ff8a80); }
+.kpi.c4::after { background:linear-gradient(90deg,#ff9800,#ffd740); }
+.kpi.c5::after { background:linear-gradient(90deg,#ab47bc,#e040fb); }
+.kpi-label { font-size:11px; color:#6b7a99; margin-bottom:8px; }
+.kpi-val { font-size:24px; font-weight:800; }
+.kpi.c1 .kpi-val { color:#64b5f6; }
+.kpi.c2 .kpi-val { color:#69f0ae; }
+.kpi.c3 .kpi-val { color:#ff7070; }
+.kpi.c4 .kpi-val { color:#ffd740; }
+.kpi.c5 .kpi-val { color:#ce93d8; }
+.kpi-sub { font-size:11px; color:#6b7a99; margin-top:6px; }
+.kpi-bar { height:5px; background:#1e2540; border-radius:3px; margin-top:10px; overflow:hidden; }
+.kpi-fill { height:100%; border-radius:3px; }
+.kpi.c1 .kpi-fill { background:linear-gradient(90deg,#448aff,#82b1ff); }
+.kpi.c2 .kpi-fill { background:linear-gradient(90deg,#00c853,#69f0ae); }
+.kpi.c3 .kpi-fill { background:linear-gradient(90deg,#ff5252,#ff8a80); }
+.kpi.c4 .kpi-fill { background:linear-gradient(90deg,#ff9800,#ffd740); }
+.kpi.c5 .kpi-fill { background:linear-gradient(90deg,#ab47bc,#e040fb); }
+
+/* Sections */
+.sec { padding:0 28px 20px; }
+.sec-title { font-size:14px; font-weight:700; color:#c8d0e0; margin-bottom:12px; display:flex; align-items:center; gap:8px; }
+.sec-title::before { content:''; width:4px; height:16px; border-radius:2px; background:linear-gradient(180deg,#448aff,#00c853); flex-shrink:0; }
+
+/* Grid */
+.g2 { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+.g3 { display:grid; grid-template-columns:1fr 1fr 1fr; gap:14px; }
+.g13 { display:grid; grid-template-columns:1fr 2fr; gap:14px; }
+.card { background:#141728; border-radius:12px; padding:18px; border:1px solid #252a45; }
+.card h3 { font-size:12px; color:#6b7a99; margin-bottom:12px; }
+
+/* Progress Ring */
+.ring-box { display:flex; gap:16px; align-items:center; }
+.ring-svg-wrap { position:relative; width:110px; height:110px; flex-shrink:0; }
+.ring-svg-wrap svg { transform:rotate(-90deg); }
+.ring-center { position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); text-align:center; line-height:1.2; }
+.ring-pct { font-size:20px; font-weight:800; }
+.ring-lbl { font-size:10px; color:#6b7a99; margin-top:2px; }
+.ring-meta { flex:1; }
+.rm-row { display:flex; justify-content:space-between; align-items:center; padding:5px 0; border-bottom:1px solid #1e2540; }
+.rm-row:last-child { border-bottom:none; }
+.rm-key { font-size:11px; color:#6b7a99; }
+.rm-val { font-size:12px; font-weight:700; }
+
+/* Tabs */
+.tabs { display:flex; background:#0d0f1a; border-radius:8px; padding:3px; width:fit-content; margin-bottom:12px; gap:0; }
+.tab { padding:6px 14px; border-radius:6px; cursor:pointer; font-size:12px; color:#6b7a99; border:none; background:transparent; transition:all .2s; font-family:inherit; }
+.tab.on { background:#252a45; color:#fff; font-weight:700; }
+
+/* Table */
+.tbl-wrap { overflow-x:auto; max-height:460px; overflow-y:auto; }
+.tbl-wrap::-webkit-scrollbar { width:5px; height:5px; }
+.tbl-wrap::-webkit-scrollbar-thumb { background:#252a45; border-radius:3px; }
+table { width:100%; border-collapse:collapse; font-size:12px; white-space:nowrap; }
+thead th { background:#0d0f1a; color:#6b7a99; padding:9px 10px; text-align:center; font-weight:600; border-bottom:1px solid #252a45; position:sticky; top:0; z-index:1; }
+tbody td { padding:8px 10px; text-align:center; border-bottom:1px solid #1a1e30; }
+tbody tr:hover { background:#1a1e30; }
+.wk-row td { background:#161c30 !important; color:#82b1ff !important; font-weight:700; }
+.sum-row td { background:#1a1e30 !important; font-weight:800; }
+.c-blue { color:#64b5f6; }
+.c-green { color:#69f0ae; }
+.c-red { color:#ff7070; }
+.c-yellow { color:#ffd740; }
+.c-orange { color:#ffb74d; }
+.c-purple { color:#ce93d8; }
+.pill { display:inline-block; padding:2px 7px; border-radius:8px; font-size:10px; font-weight:700; }
+.pill-g { background:rgba(105,240,174,.15); color:#69f0ae; }
+.pill-b { background:rgba(100,181,246,.15); color:#64b5f6; }
+.pill-r { background:rgba(255,112,112,.15); color:#ff7070; }
+.pill-y { background:rgba(255,215,64,.15); color:#ffd740; }
+
+/* Legend */
+.legend { display:flex; flex-wrap:wrap; gap:12px; margin-top:10px; }
+.leg-item { display:flex; align-items:center; gap:5px; font-size:11px; color:#6b7a99; }
+.leg-dot { width:10px; height:10px; border-radius:50%; flex-shrink:0; }
+
+.footer { text-align:center; padding:14px; color:#2a3050; font-size:11px; border-top:1px solid #1a1e30; }
+
+/* ===== 数据录入浮窗 ===== */
+.modal-overlay {
+  display:none; position:fixed; top:0; left:0; right:0; bottom:0;
+  background:rgba(0,0,0,.75); z-index:1000; backdrop-filter:blur(4px);
+  align-items:center; justify-content:center;
+}
+.modal-overlay.open { display:flex; }
+.modal {
+  background:#141728; border:1px solid #2a3560; border-radius:16px;
+  width:680px; max-width:95vw; max-height:90vh; overflow-y:auto;
+  box-shadow:0 20px 60px rgba(0,0,0,.6);
+  animation: modalIn .22s ease;
+}
+@keyframes modalIn { from{transform:translateY(20px);opacity:0} to{transform:none;opacity:1} }
+.modal-header {
+  padding:20px 24px 16px; border-bottom:1px solid #252a45;
+  display:flex; align-items:center; justify-content:space-between; position:sticky; top:0;
+  background:#141728; z-index:2; border-radius:16px 16px 0 0;
+}
+.modal-header h2 { font-size:16px; font-weight:800; color:#fff; }
+.modal-close { background:none; border:none; color:#6b7a99; font-size:20px; cursor:pointer; padding:4px 8px; border-radius:6px; transition:.2s; }
+.modal-close:hover { background:#252a45; color:#fff; }
+.modal-body { padding:20px 24px; }
+.modal-footer { padding:14px 24px 20px; border-top:1px solid #1e2540; display:flex; gap:10px; justify-content:flex-end; }
+
+/* 表单 */
+.form-section { margin-bottom:20px; }
+.form-section-title {
+  font-size:12px; font-weight:700; color:#82b1ff; margin-bottom:10px;
+  padding-bottom:6px; border-bottom:1px solid #1e2540;
+  display:flex; align-items:center; gap:6px;
+}
+.form-row { display:grid; gap:10px; margin-bottom:10px; }
+.form-row.cols2 { grid-template-columns:1fr 1fr; }
+.form-row.cols3 { grid-template-columns:1fr 1fr 1fr; }
+.form-row.cols4 { grid-template-columns:1fr 1fr 1fr 1fr; }
+.form-group { display:flex; flex-direction:column; gap:5px; }
+.form-group label { font-size:11px; color:#6b7a99; }
+.form-group input, .form-group select {
+  background:#0d0f1a; border:1px solid #2a3560; border-radius:7px;
+  padding:8px 10px; color:#e0e6f0; font-size:13px; font-family:inherit;
+  transition:.2s; outline:none;
+}
+.form-group input:focus, .form-group select:focus { border-color:#448aff; box-shadow:0 0 0 2px rgba(68,138,255,.18); }
+.form-group input::placeholder { color:#3a4260; }
+
+/* 产品录入网格 */
+.prod-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:8px; }
+.prod-item { background:#0d0f1a; border-radius:8px; padding:10px; border:1px solid #1e2540; }
+.prod-item-label { font-size:10px; color:#6b7a99; margin-bottom:5px; display:flex; align-items:center; gap:4px; }
+.prod-item-dot { width:8px; height:8px; border-radius:50%; }
+.prod-item input { width:100%; background:transparent; border:none; border-bottom:1px solid #2a3560; padding:4px 0; color:#e0e6f0; font-size:12px; font-family:inherit; outline:none; }
+.prod-item input:focus { border-bottom-color:#448aff; }
+
+/* 按钮 */
+.btn { padding:9px 20px; border-radius:8px; font-size:13px; font-weight:700; cursor:pointer; border:none; font-family:inherit; transition:.2s; }
+.btn-primary { background:linear-gradient(135deg,#448aff,#6200ea); color:#fff; }
+.btn-primary:hover { opacity:.9; transform:translateY(-1px); }
+.btn-secondary { background:#252a45; color:#8892a4; }
+.btn-secondary:hover { background:#2d3555; color:#e0e6f0; }
+.btn-danger { background:rgba(255,82,82,.15); color:#ff5252; border:1px solid rgba(255,82,82,.25); }
+.btn-danger:hover { background:rgba(255,82,82,.25); }
+
+/* 录入历史列表 */
+.history-list { max-height:220px; overflow-y:auto; }
+.history-list::-webkit-scrollbar { width:4px; }
+.history-list::-webkit-scrollbar-thumb { background:#252a45; border-radius:2px; }
+.history-item {
+  display:flex; align-items:center; gap:10px; padding:9px 12px;
+  background:#0d0f1a; border-radius:8px; margin-bottom:6px;
+  border:1px solid #1e2540; font-size:12px;
+}
+.history-item:hover { border-color:#2a3560; }
+.history-date { color:#64b5f6; font-weight:700; min-width:48px; }
+.history-vals { flex:1; display:flex; gap:14px; color:#8892a4; }
+.history-vals span { white-space:nowrap; }
+.history-vals .hv-zy { color:#69f0ae; }
+.history-vals .hv-dr { color:#ff7070; }
+.history-edit, .history-del { padding:3px 8px; border-radius:5px; font-size:11px; cursor:pointer; border:none; font-family:inherit; }
+.history-edit { background:#1e2540; color:#64b5f6; }
+.history-del  { background:rgba(255,82,82,.12); color:#ff5252; }
+
+/* 快捷录入条 */
+.quick-bar {
+  position:fixed; bottom:24px; right:24px; z-index:900;
+  display:flex; flex-direction:column; gap:8px; align-items:flex-end;
+}
+.fab { width:52px; height:52px; border-radius:50%; border:none; cursor:pointer;
+  display:flex; align-items:center; justify-content:center; font-size:22px;
+  box-shadow:0 4px 16px rgba(0,0,0,.45); transition:.2s; }
+.fab-main { background:linear-gradient(135deg,#448aff,#6200ea); }
+.fab-main:hover { transform:scale(1.08); box-shadow:0 6px 24px rgba(68,138,255,.5); }
+.fab-label { background:#141728; color:#8892a4; font-size:11px; padding:3px 10px; border-radius:12px; border:1px solid #252a45; white-space:nowrap; }
+
+/* toast */
+.toast {
+  position:fixed; top:24px; left:50%; transform:translateX(-50%);
+  background:#1e2d1e; color:#69f0ae; border:1px solid #2e4a2e;
+  padding:10px 22px; border-radius:10px; font-size:13px; font-weight:700;
+  z-index:9999; opacity:0; transition:opacity .3s;
+  pointer-events:none;
+}
+.toast.show { opacity:1; }
+.toast.err { background:#2d1a1a; color:#ff7070; border-color:#4a2e2e; }
+
+/* 已录入标记 */
+.new-badge { display:inline-block; width:7px; height:7px; border-radius:50%; background:#69f0ae; margin-left:5px; vertical-align:middle; }
+
+/* 数据管理面板 */
+.mgmt-tabs { display:flex; gap:0; background:#0d0f1a; border-radius:8px; padding:3px; width:fit-content; margin-bottom:14px; }
+.mgmt-tab { padding:6px 16px; border-radius:6px; cursor:pointer; font-size:12px; color:#6b7a99; border:none; background:transparent; transition:.2s; font-family:inherit; }
+.mgmt-tab.on { background:#252a45; color:#fff; font-weight:700; }
+
+/* 月份无数据提示 */
+.empty-month-tip {
+  text-align:center; padding:60px 20px;
+  color:#2a3050;
+}
+.empty-month-tip .big-icon { font-size:48px; margin-bottom:16px; }
+.empty-month-tip h3 { font-size:16px; color:#4a5580; margin-bottom:8px; }
+.empty-month-tip p { font-size:13px; }
+
+/* 目标设置面板 */
+.tgt-row { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:8px; }
+.tgt-item { background:#0d0f1a; border-radius:8px; padding:12px; border:1px solid #1e2540; display:flex; flex-direction:column; gap:6px; }
+.tgt-item .tgt-lbl { font-size:11px; color:#6b7a99; }
+.tgt-item input { background:#1a1e30; border:1px solid #2a3560; border-radius:6px; padding:7px 10px; color:#e0e6f0; font-size:13px; font-family:inherit; outline:none; }
+.tgt-item input:focus { border-color:#448aff; }
+.tgt-item input::placeholder { color:#3a4260; }
+</style>
+</head>
+<body>
+
+<!-- ===== 月份切换导航 ===== -->
+<div class="month-selector" id="month-selector">
+  <div class="ms-label">
+    <span class="ms-icon">📅</span>
+    <span>选择月份</span>
+  </div>
+  <select class="month-select" id="month-select" onchange="switchMonth(this.value)">
+    <option value="m1">1月</option>
+    <option value="m2">2月</option>
+    <option value="m3">3月</option>
+    <option value="m4" selected>4月</option>
+    <option value="m5">5月</option>
+    <option value="m6">6月</option>
+    <option value="m7">7月</option>
+    <option value="m8">8月</option>
+    <option value="m9">9月</option>
+    <option value="m10">10月</option>
+    <option value="m11">11月</option>
+    <option value="m12">12月</option>
+  </select>
+  <div class="ms-dots" id="ms-dots"></div>
+  <div class="ms-tip" id="ms-tip"></div>
+</div>
+
+<!-- ===== 头部 ===== -->
+<div class="header">
+  <div class="header-left">
+    <h1 id="page-title">🎯 千川短视频投放 · 月度指标动态看板</h1>
+    <div class="sub" id="header-sub">卫龙甘蓝饼干系列 · 请选择月份或录入数据</div>
+  </div>
+  <div class="header-right">
+    <span class="badge badge-blue" id="badge-month">📅 --月</span>
+    <span class="badge badge-orange" id="badge-lastupdate">📊 暂无数据</span>
+    <button class="btn-input btn-input-main" onclick="openModal('add')" id="btn-add">＋ 录入数据</button>
+    <button class="btn-input" style="background:#1e2540;color:#8892a4;border:1px solid #2a3560" onclick="openModal('manage')">📋 数据管理</button>
+    <button class="btn-input" style="background:#1e2540;color:#8892a4;border:1px solid #2a3560" onclick="openModal('targets')">🎯 目标设置</button>
+  </div>
+</div>
+
+<!-- 内容区域（动态切换） -->
+<div id="dashboard-content">
+  <!-- KPI -->
+  <div class="kpi-row" id="kpi-row"></div>
+
+  <!-- 进度圈 -->
+  <div class="sec">
+    <div class="sec-title">指标进度追踪</div>
+    <div class="g2">
+      <div class="card">
+        <h3>🏪 自营短视频成交进度</h3>
+        <div class="ring-box" id="ring-zy"></div>
+      </div>
+      <div class="card">
+        <h3>⭐ 达人短视频成交进度</h3>
+        <div class="ring-box" id="ring-dr"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 趋势 -->
+  <div class="sec">
+    <div class="sec-title">每日成交趋势</div>
+    <div class="card">
+      <div class="tabs" id="trend-tabs">
+        <button class="tab on" onclick="switchTrend('all',this)">全部</button>
+        <button class="tab"    onclick="switchTrend('zy',this)">自营</button>
+        <button class="tab"    onclick="switchTrend('dr',this)">达人</button>
+      </div>
+      <div style="height:240px;position:relative"><canvas id="trendC"></canvas></div>
+    </div>
+  </div>
+
+  <!-- 周 + 产品 -->
+  <div class="sec">
+    <div class="sec-title">周维度汇总 & 产品结构</div>
+    <div class="g2">
+      <div class="card">
+        <h3>📅 每周成交汇总（自营 vs 达人）</h3>
+        <div style="height:210px;position:relative"><canvas id="weekC"></canvas></div>
+      </div>
+      <div class="card">
+        <h3>🥧 自营各产品成交占比</h3>
+        <div style="height:210px;position:relative"><canvas id="pieC"></canvas></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 成交结构 + 产品堆叠 -->
+  <div class="sec">
+    <div class="sec-title">成交结构分析</div>
+    <div class="g2">
+      <div class="card">
+        <h3>📊 自营 / 达人 每日成交占比</h3>
+        <div style="height:210px;position:relative"><canvas id="ratioC"></canvas></div>
+      </div>
+      <div class="card">
+        <h3>📦 自营各产品每日成交堆叠图</h3>
+        <div style="height:210px;position:relative"><canvas id="stackC"></canvas></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 明细表 -->
+  <div class="sec">
+    <div class="sec-title">数据明细表</div>
+    <div class="card">
+      <div class="tabs" id="tbl-tabs">
+        <button class="tab on"  onclick="switchTbl('day',this)">按天查看</button>
+        <button class="tab"     onclick="switchTbl('week',this)">按周汇总</button>
+        <button class="tab"     onclick="switchTbl('product',this)">产品维度</button>
+      </div>
+      <div class="tbl-wrap" id="tbl"></div>
+    </div>
+  </div>
+</div>
+
+<div class="footer">数据来源：千川乘方数据导出 · 自营数据来自Excel · 总成交来自千川后台截图 · 新增数据通过录入窗口本地存储 · 仅供内部参考</div>
+
+<!-- 悬浮按钮 -->
+<div class="quick-bar">
+  <div class="fab-label" id="fab-tip">点击录入今日数据</div>
+  <button class="fab fab-main" onclick="openModal('add')" title="录入数据">＋</button>
+</div>
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<!-- ===== 数据录入/管理 浮窗 ===== -->
+<div class="modal-overlay" id="modal-overlay" onclick="closeModalOverlay(event)">
+  <div class="modal" id="modal-box">
+    <!-- 录入模式 -->
+    <div id="panel-add">
+      <div class="modal-header">
+        <h2 id="panel-add-title">✏️ 录入 / 更新每日数据</h2>
+        <button class="modal-close" onclick="closeModal()">✕</button>
+      </div>
+      <div class="modal-body">
+        <!-- 提示月份 -->
+        <div id="month-tip" style="background:rgba(68,138,255,.1);border:1px solid rgba(68,138,255,.2);border-radius:8px;padding:8px 12px;margin-bottom:16px;font-size:12px;color:#64b5f6;display:none">
+          正在录入 <strong id="tip-month-name"></strong> 的数据
+        </div>
+        <!-- 日期 -->
+        <div class="form-section">
+          <div class="form-section-title">📅 选择日期</div>
+          <div class="form-row cols2">
+            <div class="form-group">
+              <label>日期（<span id="inp-month-label">当前月</span>）</label>
+              <select id="inp-date">
+                <option value="">-- 选择日期 --</option>
+              </select>
+            </div>
+            <div class="form-group" style="justify-content:flex-end;padding-top:18px">
+              <div id="date-status" style="font-size:12px;color:#6b7a99"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 达人数据 -->
+        <div class="form-section">
+          <div class="form-section-title">⭐ 达人数据</div>
+          <div class="form-row cols2">
+            <div class="form-group">
+              <label>达人成交金额（元）</label>
+              <input type="number" id="inp-dr-gmv" placeholder="如：25800" min="0" step="0.01">
+            </div>
+            <div class="form-group">
+              <label>达人消耗金额（元，可选）</label>
+              <input type="number" id="inp-dr-cost" placeholder="如：9800" min="0" step="0.01">
+            </div>
+          </div>
+        </div>
+
+        <!-- 自营汇总 -->
+        <div class="form-section">
+          <div class="form-section-title">🏪 自营汇总数据（自动汇总，可手动覆盖）</div>
+          <div class="form-row cols3">
+            <div class="form-group">
+              <label>自营总成交（元）</label>
+              <input type="number" id="inp-zy-gmv-total" placeholder="自动汇总" min="0" step="0.01" readonly style="opacity:.6;cursor:not-allowed">
+            </div>
+            <div class="form-group">
+              <label>自营总消耗（元）</label>
+              <input type="number" id="inp-zy-cost-total" placeholder="自动汇总" min="0" step="0.01" readonly style="opacity:.6;cursor:not-allowed">
+            </div>
+            <div class="form-group" style="justify-content:flex-end;padding-top:18px">
+              <div id="zy-roi-preview" style="font-size:12px;color:#ffd740"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 自营各产品成交 -->
+        <div class="form-section">
+          <div class="form-section-title">📦 自营各产品成交（元）</div>
+          <div class="prod-grid" id="prod-gmv-grid"></div>
+        </div>
+
+        <!-- 达人各产品成交 -->
+        <div class="form-section">
+          <div class="form-section-title">⭐ 达人各产品成交（元）</div>
+          <div class="prod-grid" id="prod-dr-gmv-grid"></div>
+        </div>
+
+        <!-- 总成交/总消耗（千川后台） -->
+        <div class="form-section">
+          <div class="form-section-title">📊 千川后台数据（自营+达人总和，可选）</div>
+          <div class="form-row cols2">
+            <div class="form-group">
+              <label>千川后台当日总成交（元）</label>
+              <input type="number" id="inp-total-gmv" placeholder="不填则自动计算（自营+达人）" min="0" step="0.01">
+            </div>
+            <div class="form-group">
+              <label>千川后台当日总消耗（元）</label>
+              <input type="number" id="inp-total-cost" placeholder="不填则自动计算（自营+达人）" min="0" step="0.01">
+            </div>
+          </div>
+          <div class="form-row cols2" style="margin-top:6px">
+            <div class="form-group" style="justify-content:flex-start;padding-top:0">
+              <div id="total-preview" style="font-size:12px;color:#6b7a99"></div>
+            </div>
+            <div class="form-group" style="justify-content:flex-start;padding-top:0">
+              <div id="total-cost-preview" style="font-size:12px;color:#6b7a99"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" onclick="clearForm()">清空</button>
+        <button class="btn btn-secondary" onclick="closeModal()">取消</button>
+        <button class="btn btn-primary" onclick="saveEntry()">💾 保存并更新看板</button>
+      </div>
+    </div>
+
+    <!-- 管理模式 -->
+    <div id="panel-manage" style="display:none">
+      <div class="modal-header">
+        <h2>📋 数据管理（<span id="mgmt-month-name"></span>）</h2>
+        <button class="modal-close" onclick="closeModal()">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="mgmt-tabs">
+          <button class="mgmt-tab on" onclick="switchMgmt('new',this)">新录数据</button>
+          <button class="mgmt-tab" onclick="switchMgmt('all',this)">全部记录</button>
+          <button class="mgmt-tab" onclick="switchMgmt('import',this)">批量导入</button>
+        </div>
+        <div id="mgmt-panel-new">
+          <div style="font-size:12px;color:#6b7a99;margin-bottom:10px">以下是通过录入窗口新增的数据（蓝色标注），点击可编辑：</div>
+          <div class="history-list" id="history-new"></div>
+          <div style="margin-top:14px;display:flex;gap:10px">
+            <button class="btn btn-danger" onclick="clearAllNew()">🗑 清空当月新录数据</button>
+            <button class="btn btn-secondary" onclick="exportData()">📤 导出为JSON</button>
+          </div>
+        </div>
+        <div id="mgmt-panel-all" style="display:none">
+          <div style="font-size:12px;color:#6b7a99;margin-bottom:10px">全部日期数据（历史 + 新录）：</div>
+          <div class="history-list" id="history-all"></div>
+        </div>
+        <div id="mgmt-panel-import" style="display:none">
+          <div style="font-size:12px;color:#6b7a99;margin-bottom:10px">粘贴 JSON 数据批量导入：</div>
+          <textarea id="import-json" style="width:100%;height:180px;background:#0d0f1a;border:1px solid #2a3560;border-radius:8px;padding:12px;color:#e0e6f0;font-size:12px;font-family:monospace;resize:vertical;outline:none" placeholder='{"1/5":{"drGmv":25000,"drCost":9000,"prods":{"万年青":10000},"costs":{"万年青":4000}}}'></textarea>
+          <div style="margin-top:10px">
+            <button class="btn btn-primary" onclick="importJson()">📥 导入数据</button>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" onclick="openModal('add')">← 去录入</button>
+        <button class="btn btn-secondary" onclick="closeModal()">关闭</button>
+      </div>
+    </div>
+
+    <!-- 目标设置模式 -->
+    <div id="panel-targets" style="display:none">
+      <div class="modal-header">
+        <h2>🎯 月度目标设置（<span id="tgt-month-name"></span>）</h2>
+        <button class="modal-close" onclick="closeModal()">✕</button>
+      </div>
+      <div class="modal-body">
+        <div style="font-size:12px;color:#6b7a99;margin-bottom:14px">设置当月的成交目标和消耗预算，看板进度将实时更新。</div>
+        <div class="tgt-row">
+          <div class="tgt-item">
+            <div class="tgt-lbl">🏪 自营成交目标（元）</div>
+            <input type="number" id="tgt-zy" placeholder="如：770000" min="0" step="1">
+          </div>
+          <div class="tgt-item">
+            <div class="tgt-lbl">💰 自营消耗预算（元）</div>
+            <input type="number" id="tgt-zy-cost" placeholder="如：280000" min="0" step="1">
+          </div>
+        </div>
+        <div class="tgt-row">
+          <div class="tgt-item">
+            <div class="tgt-lbl">⭐ 达人成交目标（元）</div>
+            <input type="number" id="tgt-dr" placeholder="如：660000" min="0" step="1">
+          </div>
+          <div class="tgt-item">
+            <div class="tgt-lbl">📊 达人消耗预算（元）</div>
+            <input type="number" id="tgt-dr-cost" placeholder="如：250000" min="0" step="1">
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" onclick="closeModal()">取消</button>
+        <button class="btn btn-primary" onclick="saveTargets()">💾 保存目标</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ================================================================
+// 多月份基础数据结构
+// ================================================================
+// 月份基础数据（KEY: "m4" = 4月），可按需扩展
+const MONTH_DATA = {
+  m4: {
+    name: '4月',
+    daysInMonth: 30,
+    BASE_ZY_GMV: {
+      "4/1":  {"香葱鸡片":7628.20,"万年青":10966.00,"红稗":1836.50,"牛油果":0.00,"羽衣甘蓝":0.00,"红枣酥":2532.80,"辣味饼干":239.20},
+      "4/2":  {"香葱鸡片":7170.90,"万年青":8574.00,"红稗":4419.80,"牛油果":0.00,"羽衣甘蓝":0.00,"红枣酥":927.30,"辣味饼干":149.50},
+      "4/3":  {"香葱鸡片":4584.90,"万年青":12931.10,"红稗":2891.50,"牛油果":32.80,"羽衣甘蓝":0.00,"红枣酥":1604.90,"辣味饼干":283.10},
+      "4/4":  {"香葱鸡片":6494.20,"万年青":11314.69,"红稗":6997.80,"牛油果":1685.30,"羽衣甘蓝":0.00,"红枣酥":1694.60,"辣味饼干":858.20},
+      "4/5":  {"香葱鸡片":8522.40,"万年青":8394.00,"红稗":1772.00,"牛油果":948.60,"羽衣甘蓝":0.00,"红枣酥":2472.60,"辣味饼干":276.10},
+      "4/6":  {"香葱鸡片":5931.20,"万年青":10408.00,"红稗":1497.90,"牛油果":1540.10,"羽衣甘蓝":0.00,"红枣酥":1445.50,"辣味饼干":619.00},
+      "4/7":  {"香葱鸡片":7679.29,"万年青":15260.90,"红稗":1806.70,"牛油果":434.50,"羽衣甘蓝":0.00,"红枣酥":1675.00,"辣味饼干":582.10},
+      "4/8":  {"香葱鸡片":13302.20,"万年青":14701.10,"红稗":3409.10,"牛油果":1636.66,"羽衣甘蓝":0.00,"红枣酥":1635.40,"辣味饼干":306.00},
+      "4/9":  {"香葱鸡片":7098.00,"万年青":11554.50,"红稗":9627.60,"牛油果":784.60,"羽衣甘蓝":0.00,"红枣酥":1495.40,"辣味饼干":1311.80},
+      "4/10": {"香葱鸡片":6583.74,"万年青":11326.79,"红稗":5884.40,"牛油果":1550.82,"羽衣甘蓝":0.00,"红枣酥":2470.74,"辣味饼干":306.00},
+      "4/11": {"香葱鸡片":7060.80,"万年青":13977.20,"红稗":9294.90,"牛油果":1565.50,"羽衣甘蓝":0.00,"红枣酥":1126.70,"辣味饼干":432.60},
+      "4/12": {"香葱鸡片":8552.50,"万年青":11983.80,"红稗":6661.40,"牛油果":4407.19,"羽衣甘蓝":0.00,"红枣酥":3051.40,"辣味饼干":952.00},
+      "4/13": {"香葱鸡片":9140.00,"万年青":14226.10,"红稗":9254.10,"牛油果":3489.60,"羽衣甘蓝":0.00,"红枣酥":2749.90,"辣味饼干":782.50},
+      "4/14": {"香葱鸡片":9577.30,"万年青":13837.20,"红稗":3434.00,"牛油果":5443.20,"羽衣甘蓝":0.00,"红枣酥":1889.60,"辣味饼干":209.30},
+      "4/15": {"香葱鸡片":8482.49,"万年青":12988.91,"红稗":4439.60,"牛油果":4336.50,"羽衣甘蓝":0.00,"红枣酥":1565.50,"辣味饼干":738.60},
+      "4/16": {"香葱鸡片":11317.50,"万年青":9072.60,"红稗":3185.00,"牛油果":5699.45,"羽衣甘蓝":0.00,"红枣酥":3489.80,"辣味饼干":492.40},
+      "4/17": {"香葱鸡片":8406.40,"万年青":12730.90,"红稗":2349.20,"牛油果":2534.00,"羽衣甘蓝":0.00,"红枣酥":1146.70,"辣味饼干":536.30},
+      "4/18": {"香葱鸡片":10922.90,"万年青":11076.70,"红稗":8272.00,"牛油果":8000.80,"羽衣甘蓝":0.00,"红枣酥":1405.50,"辣味饼干":342.90},
+      "4/19": {"香葱鸡片":7293.30,"万年青":15562.70,"红稗":3942.40,"牛油果":3965.00,"羽衣甘蓝":0.00,"红枣酥":3091.20,"辣味饼干":1044.60},
+      "4/20": {"香葱鸡片":6865.00,"万年青":12870.00,"红稗":3185.40,"牛油果":2291.50,"羽衣甘蓝":0.00,"红枣酥":1914.00,"辣味饼干":1134.30},
+      "4/21": {"香葱鸡片":9352.50,"万年青":18282.40,"红稗":4937.20,"牛油果":1674.60,"羽衣甘蓝":0.00,"红枣酥":5334.90,"辣味饼干":619.00},
+      "4/22": {"香葱鸡片":9525.90,"万年青":14555.80,"红稗":8023.40,"牛油果":2284.30,"羽衣甘蓝":0.00,"红枣酥":2024.30,"辣味饼干":685.80},
+      "4/23": {"香葱鸡片":10609.90,"万年青":10467.60,"红稗":1433.20,"牛油果":1941.40,"羽衣甘蓝":0.00,"红枣酥":1705.10,"辣味饼干":655.90},
+      "4/24": {"香葱鸡片":7210.80,"万年青":11023.52,"红稗":4498.80,"牛油果":3869.13,"羽衣甘蓝":0.00,"红枣酥":2120.76,"辣味饼干":1343.60},
+      "4/25": {"香葱鸡片":8563.99,"万年青":13382.28,"红稗":2466.62,"牛油果":7574.72,"羽衣甘蓝":0.00,"红枣酥":2866.03,"辣味饼干":1404.50},
+      "4/26": {"香葱鸡片":7061.40,"万年青":11489.29,"红稗":4219.05,"牛油果":1696.82,"羽衣甘蓝":0.00,"红枣酥":2622.80,"辣味饼干":761.50},
+      "4/27": {"香葱鸡片":1989.30,"万年青":5326.57,"红稗":756.60,"牛油果":1133.71,"羽衣甘蓝":0.00,"红枣酥":912.95,"辣味饼干":306.00},
+    },
+    BASE_ZY_COST: {
+      "4/1":  {"香葱鸡片":2950.66,"万年青":4071.75,"红稗":962.01,"牛油果":0.00,"羽衣甘蓝":0.00,"红枣酥":1059.40,"辣味饼干":233.24},
+      "4/2":  {"香葱鸡片":2599.66,"万年青":3123.10,"红稗":2297.42,"牛油果":0.00,"羽衣甘蓝":0.00,"红枣酥":424.96,"辣味饼干":137.73},
+      "4/3":  {"香葱鸡片":1702.55,"万年青":4861.49,"红稗":1411.43,"牛油果":23.64,"羽衣甘蓝":0.00,"红枣酥":691.47,"辣味饼干":121.20},
+      "4/4":  {"香葱鸡片":2273.93,"万年青":4180.23,"红稗":3534.34,"牛油果":843.84,"羽衣甘蓝":0.00,"红枣酥":703.59,"辣味饼干":591.73},
+      "4/5":  {"香葱鸡片":3155.17,"万年青":3137.94,"红稗":1011.72,"牛油果":427.43,"羽衣甘蓝":0.00,"红枣酥":1051.02,"辣味饼干":175.75},
+      "4/6":  {"香葱鸡片":2183.05,"万年青":3885.74,"红稗":719.00,"牛油果":715.84,"羽衣甘蓝":0.00,"红枣酥":671.48,"辣味饼干":333.67},
+      "4/7":  {"香葱鸡片":2913.73,"万年青":5582.37,"红稗":926.80,"牛油果":118.78,"羽衣甘蓝":0.00,"红枣酥":656.58,"辣味饼干":419.10},
+      "4/8":  {"香葱鸡片":5223.00,"万年青":5472.68,"红稗":1709.30,"牛油果":933.99,"羽衣甘蓝":0.00,"红枣酥":736.94,"辣味饼干":246.15},
+      "4/9":  {"香葱鸡片":2794.59,"万年青":4261.30,"红稗":4583.64,"牛油果":382.90,"羽衣甘蓝":0.00,"红枣酥":629.69,"辣味饼干":877.34},
+      "4/10": {"香葱鸡片":2505.79,"万年青":4155.98,"红稗":2735.69,"牛油果":687.57,"羽衣甘蓝":0.00,"红枣酥":1112.34,"辣味饼干":285.11},
+      "4/11": {"香葱鸡片":2628.93,"万年青":5110.33,"红稗":4485.28,"牛油果":888.94,"羽衣甘蓝":0.00,"红枣酥":489.74,"辣味饼干":261.15},
+      "4/12": {"香葱鸡片":3274.64,"万年青":4554.06,"红稗":3291.94,"牛油果":2413.67,"羽衣甘蓝":0.00,"红枣酥":1325.65,"辣味饼干":618.07},
+      "4/13": {"香葱鸡片":3551.53,"万年青":5309.68,"红稗":4366.21,"牛油果":1881.53,"羽衣甘蓝":0.00,"红枣酥":1226.78,"辣味饼干":540.36},
+      "4/14": {"香葱鸡片":3429.70,"万年青":5202.29,"红稗":1566.68,"牛油果":2581.55,"羽衣甘蓝":0.00,"红枣酥":802.91,"辣味饼干":205.11},
+      "4/15": {"香葱鸡片":3082.60,"万年青":4938.18,"红稗":2294.90,"牛油果":2011.88,"羽衣甘蓝":0.00,"红枣酥":668.45,"辣味饼干":427.16},
+      "4/16": {"香葱鸡片":4254.41,"万年青":3258.76,"红稗":1593.47,"牛油果":2649.62,"羽衣甘蓝":0.00,"红枣酥":1571.84,"辣味饼干":386.97},
+      "4/17": {"香葱鸡片":3193.17,"万年青":4636.16,"红稗":1170.83,"牛油果":1121.13,"羽衣甘蓝":0.00,"红枣酥":432.32,"辣味饼干":309.09},
+      "4/18": {"香葱鸡片":4099.50,"万年青":4099.45,"红稗":3678.59,"牛油果":3651.80,"羽衣甘蓝":0.00,"红枣酥":656.29,"辣味饼干":183.88},
+      "4/19": {"香葱鸡片":2616.61,"万年青":5483.29,"红稗":1755.59,"牛油果":1826.99,"羽衣甘蓝":0.00,"红枣酥":1372.19,"辣味饼干":620.10},
+      "4/20": {"香葱鸡片":2401.68,"万年青":4544.53,"红稗":1405.99,"牛油果":1063.41,"羽衣甘蓝":0.00,"红枣酥":789.03,"辣味饼干":616.02},
+      "4/21": {"香葱鸡片":3453.51,"万年青":6468.71,"红稗":2358.22,"牛油果":770.17,"羽衣甘蓝":0.00,"红枣酥":2350.34,"辣味饼干":528.58},
+      "4/22": {"香葱鸡片":3695.56,"万年青":5260.70,"红稗":3751.52,"牛油果":1019.21,"羽衣甘蓝":0.00,"红枣酥":861.83,"辣味饼干":497.40},
+      "4/23": {"香葱鸡片":4139.35,"万年青":3815.71,"红稗":781.89,"牛油果":841.46,"羽衣甘蓝":0.00,"红枣酥":775.61,"辣味饼干":457.96},
+      "4/24": {"香葱鸡片":2782.73,"万年青":4168.96,"红稗":2291.10,"牛油果":1768.33,"羽衣甘蓝":0.00,"红枣酥":930.80,"辣味饼干":883.04},
+      "4/25": {"香葱鸡片":3451.79,"万年青":5044.14,"红稗":1290.69,"牛油果":3704.11,"羽衣甘蓝":0.00,"红枣酥":1179.86,"辣味饼干":976.60},
+      "4/26": {"香葱鸡片":2742.60,"万年青":4246.91,"红稗":2111.17,"牛油果":911.01,"羽衣甘蓝":0.00,"红枣酥":1105.44,"辣味饼干":392.23},
+      "4/27": {"香葱鸡片":707.25,"万年青":1915.86,"红稗":352.63,"牛油果":602.41,"羽衣甘蓝":0.00,"红枣酥":357.41,"辣味饼干":185.14},
+    },
+    BASE_TOTAL_GMV: {
+      "4/1":42066,"4/2":43027,"4/3":44767,"4/4":56302,"4/5":42386,
+      "4/6":40290,"4/7":55388,"4/8":68037,"4/9":60372,"4/10":56122,
+      "4/11":66895,"4/12":71216,"4/13":79284,"4/14":64871,"4/15":65103,
+      "4/16":66514,"4/17":55407,"4/18":80042,"4/19":69798,"4/20":56520,
+      "4/21":80401,"4/22":74199,"4/23":53626,"4/24":60133,
+      "4/25":72516,"4/26":55702,"4/27":20850,
+    },
+    DEFAULT_TARGETS: { TGT_ZY: 770000, TGT_DR: 660000, BGT_ZY: 280000, BGT_DR: 250000 }
+  }
+};
+
+// ================================================================
+// 全局状态
+// ================================================================
+let CUR_MONTH = 'm4'; // 当前选中的月份
+let CUR_TGT = { TGT_ZY: 770000, TGT_DR: 660000, BGT_ZY: 280000, BGT_DR: 250000 };
+const PRODS = ["香葱鸡片","万年青","红稗","牛油果","羽衣甘蓝","红枣酥","辣味饼干"];
+const COLORS= ["#ff6b6b","#448aff","#ffd740","#ce93d8","#69f0ae","#26c6da","#ffab40"];
+const PROD_COLORS = {"香葱鸡片":"#ff6b6b","万年青":"#448aff","红稗":"#ffd740","牛油果":"#ce93d8","羽衣甘蓝":"#69f0ae","红枣酥":"#26c6da","辣味饼干":"#ffab40"};
+
+// ================================================================
+// LocalStorage — 按月份独立存储
+// ================================================================
+function lsKey(type) { return `qc_dashboard_${type}_${CUR_MONTH}`; }
+function lsTgtKey() { return `qc_dashboard_targets_${CUR_MONTH}`; }
+
+function loadExtra() {
+  try { return JSON.parse(localStorage.getItem(lsKey('extra')) || '{}'); } catch(e) { return {}; }
+}
+function saveExtra(obj) {
+  localStorage.setItem(lsKey('extra'), JSON.stringify(obj));
+}
+function loadTargets() {
+  try { return JSON.parse(localStorage.getItem(lsTgtKey()) || 'null'); } catch(e) { return null; }
+}
+function saveTargetsToLs(tgt) {
+  localStorage.setItem(lsTgtKey(), JSON.stringify(tgt));
+}
+
+// 检查某月份是否有录入数据
+function hasExtraFor(m) {
+  try { const v = localStorage.getItem(`qc_dashboard_extra_${m}`); return !!(v && v !== '{}'); } catch(e) { return false; }
+}
+
+// ================================================================
+// 辅助函数
+// ================================================================
+function sumObj(o){ return o ? Object.values(o).reduce((s,v)=>s+(+v||0),0) : 0; }
+function W(v){ return ((+v||0)/10000).toFixed(2)+'万'; }
+function W2(v){ return ((+v||0)/10000).toFixed(3)+'万'; }
+function num(v){ return (+v||0).toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g,','); }
+function dKey(day){ return `${CUR_MONTH.replace('m','')}/${day}`; }
+function monthName(){ return MONTH_DATA[CUR_MONTH]?.name || CUR_MONTH; }
+
+// ================================================================
+// 月份选择器
+// ================================================================
+function updateMonthSelector() {
+  const sel = document.getElementById('month-select');
+  if(!sel) return;
+
+  // 更新下拉选项样式
+  for(let i=1;i<=12;i++){
+    const key=`m${i}`;
+    const opt = sel.querySelector(`option[value="${key}"]`);
+    if(!opt) continue;
+    const hasData = !!MONTH_DATA[key];
+    const hasExtra = hasExtraFor(key);
+    opt.className = hasExtra ? 'has-extra' : hasData ? 'has-base' : '';
+    opt.textContent = `${i}月${hasExtra?' ✓已录入':hasData?' (有数据)':''}`;
+  }
+
+  sel.value = CUR_MONTH;
+
+  // 更新数据点
+  const dotsEl = document.getElementById('ms-dots');
+  const tipEl = document.getElementById('ms-tip');
+  const hasData = !!MONTH_DATA[CUR_MONTH];
+  const hasExtra = hasExtraFor(CUR_MONTH);
+  dotsEl.innerHTML = '';
+  if(hasData) dotsEl.innerHTML += `<span class="ms-dot ms-dot-blue" title="有历史数据"></span>`;
+  if(hasExtra) dotsEl.innerHTML += `<span class="ms-dot ms-dot-green" title="有新录入"></span>`;
+
+  const mn = monthName();
+  if(hasExtra) tipEl.textContent = `含${countExtra(CUR_MONTH)}条新录数据`;
+  else if(hasData) tipEl.textContent = '历史基础数据';
+  else tipEl.textContent = '空看板，可自由录入';
+}
+
+function countExtra(m) {
+  try { const v = localStorage.getItem(`qc_dashboard_extra_${m}`); return v ? Object.keys(JSON.parse(v)).length : 0; } catch(e) { return 0; }
+}
+
+// ================================================================
+// 切换月份
+// ================================================================
+window.switchMonth = function(key) {
+  CUR_MONTH = key;
+  const md = MONTH_DATA[key] || { daysInMonth: 31, DEFAULT_TARGETS: { TGT_ZY: 500000, TGT_DR: 500000, BGT_ZY: 200000, BGT_DR: 200000 } };
+  const savedTgt = loadTargets();
+  CUR_TGT = savedTgt || md.DEFAULT_TARGETS;
+
+  // 更新头部
+  const mn = md.name || `${key.replace('m','')}月`;
+  document.getElementById('page-title').textContent = `🎯 千川短视频投放 · ${mn}指标动态看板`;
+  document.getElementById('badge-month').textContent = `📅 2026年${mn}`;
+  document.getElementById('panel-add-title').textContent = `✏️ 录入 / 更新${mn}每日数据`;
+  document.getElementById('mgmt-month-name').textContent = mn;
+  document.getElementById('tgt-month-name').textContent = mn;
+
+  updateMonthSelector();
+  refreshAll();
+};
+
+// ================================================================
+// 构建日数据
+// ================================================================
+function getBaseGmv(){ return MONTH_DATA[CUR_MONTH]?.BASE_ZY_GMV || {}; }
+function getBaseCost(){ return MONTH_DATA[CUR_MONTH]?.BASE_ZY_COST || {}; }
+function getBaseTotal(){ return MONTH_DATA[CUR_MONTH]?.BASE_TOTAL_GMV || {}; }
+
+function buildDaily() {
+  const extra = loadExtra();
+  const baseGmv = getBaseGmv();
+  const baseCost = getBaseCost();
+  const baseTotal = getBaseTotal();
+  const md = MONTH_DATA[CUR_MONTH] || { daysInMonth: 30 };
+
+  const days = [];
+  for(let d=1;d<=md.daysInMonth;d++) days.push(`${CUR_MONTH.replace('m','')}/${d}`);
+
+  return days.filter(d => {
+    // 只要有基础数据或extra数据的日期
+    return !!(baseGmv[d] || baseCost[d] || extra[d] || baseTotal[d]);
+  }).map(d => {
+    const ex = extra[d] || null;
+    const zyGmvObj = ex?.prods ? ex.prods : (baseGmv[d] || {});
+    const zyCostObj = ex?.costs ? ex.costs : (baseCost[d] || {});
+    const zyG = sumObj(zyGmvObj);
+    const zyC = sumObj(zyCostObj);
+    let drG = 0, drC = 0;
+    if(ex) {
+      drG = +(ex.drGmv||0);
+      drC = +(ex.drCost||0);
+    } else {
+      const totImg = baseTotal[d] || zyG;
+      drG = Math.max(0, totImg - zyG);
+    }
+    const totG = zyG + drG;
+    const roi = zyC > 0 ? (zyG/zyC).toFixed(2) : '-';
+    return { d, zyG, zyC, drG, drC, totG, roi, zyGmvObj, zyCostObj, isNew: !!ex };
+  });
+}
+
+// ================================================================
+// Charts
+// ================================================================
+let charts = {};
+function destroyChart(id) { if(charts[id]){ charts[id].destroy(); delete charts[id]; } }
+
+// ================================================================
+// 全局刷新
+// ================================================================
+function refreshAll() {
+  const daily = buildDaily();
+  const md = MONTH_DATA[CUR_MONTH] || { name: CUR_MONTH };
+  const mn = md.name || `${CUR_MONTH.replace('m','')}月`;
+
+  // 周分组
+  const weeks = [];
+  let cur = null;
+  daily.forEach(r => {
+    const day = parseInt(r.d.split('/')[1]);
+    const wkIdx = Math.floor((day-1)/7);
+    if(!cur || cur.idx !== wkIdx) {
+      cur = {idx:wkIdx, dates:[], label:''};
+      weeks.push(cur);
+    }
+    cur.dates.push(r.d);
+  });
+  weeks.forEach(w => {
+    const days = w.dates.map(d=>parseInt(d.split('/')[1]));
+    w.label = `第${w.idx+1}周 (${days.length}天)`;
+  });
+
+  const weekData = weeks.map(w => {
+    const rows = daily.filter(r=>w.dates.includes(r.d));
+    const zyG = rows.reduce((s,r)=>s+r.zyG,0);
+    const drG = rows.reduce((s,r)=>s+r.drG,0);
+    const zyC = rows.reduce((s,r)=>s+r.zyC,0);
+    return {label:w.label, zyG, drG, tot:zyG+drG, zyC, roi:zyC>0?(zyG/zyC).toFixed(2):'-'};
+  });
+
+  const MONTH_ZY  = daily.reduce((s,r)=>s+r.zyG, 0);
+  const MONTH_DR  = daily.reduce((s,r)=>s+r.drG, 0);
+  const MONTH_TOT = MONTH_ZY + MONTH_DR;
+  const MONTH_COST= daily.reduce((s,r)=>s+r.zyC, 0);
+  const MONTH_ROI = MONTH_COST>0?(MONTH_ZY/MONTH_COST).toFixed(2):'-';
+
+  const prodTotals = {};
+  PRODS.forEach(p => { prodTotals[p] = daily.reduce((s,r)=>s+(r.zyGmvObj?.[p]||0),0); });
+
+  const lastDate = daily[daily.length-1]?.d || `${mn}暂无数据`;
+  document.getElementById('header-sub').textContent =
+    `卫龙甘蓝饼干系列 · 自营目标 ${W(CUR_TGT.TGT_ZY)}/预算 ${W(CUR_TGT.BGT_ZY)} | 达人目标 ${W(CUR_TGT.TGT_DR)}/预算 ${W(CUR_TGT.BGT_DR)} · ${lastDate}`;
+
+  const extra = loadExtra();
+  const extraCount = Object.keys(extra).length;
+  const hasBase = Object.keys(getBaseGmv()).length > 0;
+  document.getElementById('badge-lastupdate').textContent =
+    extraCount > 0 ? `🔄 含${extraCount}条新录` : (hasBase ? '✅ 历史数据' : '📝 空看板');
+
+  const TGT_ZY=CUR_TGT.TGT_ZY, TGT_DR=CUR_TGT.TGT_DR, BGT_ZY=CUR_TGT.BGT_ZY, BGT_DR=CUR_TGT.BGT_DR;
+  const zyPct = (MONTH_ZY/TGT_ZY*100).toFixed(1);
+  const drPct = (MONTH_DR/TGT_DR*100).toFixed(1);
+
+  // ---- KPI ----
+  document.getElementById('kpi-row').innerHTML=`
+    <div class="kpi c1">
+      <div class="kpi-label">${mn}总成交（合计）</div>
+      <div class="kpi-val">${W(MONTH_TOT)}</div>
+      <div class="kpi-sub">自营+达人 · ROI均值 ${MONTH_ROI}</div>
+      <div class="kpi-bar"><div class="kpi-fill" style="width:100%"></div></div>
+    </div>
+    <div class="kpi c2">
+      <div class="kpi-label">自营成交 目标${W(TGT_ZY)}</div>
+      <div class="kpi-val">${W(MONTH_ZY)}</div>
+      <div class="kpi-sub">完成率 ${zyPct}% · 消耗${W(MONTH_COST)}</div>
+      <div class="kpi-bar"><div class="kpi-fill" style="width:${Math.min(parseFloat(zyPct),100)}%"></div></div>
+    </div>
+    <div class="kpi c3">
+      <div class="kpi-label">达人成交 目标${W(TGT_DR)}</div>
+      <div class="kpi-val">${W(MONTH_DR)}</div>
+      <div class="kpi-sub">完成率 ${drPct}% · 预算${W(BGT_DR)}</div>
+      <div class="kpi-bar"><div class="kpi-fill" style="width:${Math.min(parseFloat(drPct),100)}%"></div></div>
+    </div>
+    <div class="kpi c4">
+      <div class="kpi-label">自营综合ROI</div>
+      <div class="kpi-val">${MONTH_ROI}</div>
+      <div class="kpi-sub">消耗${W(MONTH_COST)} / 产出${W(MONTH_ZY)}</div>
+      <div class="kpi-bar"><div class="kpi-fill" style="width:${Math.min((parseFloat(MONTH_ROI)/3)*100,100)}%"></div></div>
+    </div>
+    <div class="kpi c5">
+      <div class="kpi-label">自营/达人 结构</div>
+      <div class="kpi-val">${MONTH_TOT>0?(MONTH_ZY/MONTH_TOT*100).toFixed(0):'-'}%/${MONTH_TOT>0?(MONTH_DR/MONTH_TOT*100).toFixed(0):'-'}%</div>
+      <div class="kpi-sub">截至 ${lastDate}</div>
+      <div class="kpi-bar"><div class="kpi-fill" style="width:${MONTH_TOT>0?(MONTH_ZY/MONTH_TOT*100).toFixed(0):0}%"></div></div>
+    </div>
+  `;
+
+  // ---- 进度环 ----
+  function ring(id, cur, tgt, bgt, color, extraRows){
+    const p=Math.min(cur/tgt*100,100);
+    const r=44,cx=55,cy=55,c=2*Math.PI*r,d=(p/100)*c;
+    const rem=Math.max(tgt-cur,0);
+    const status=p>=100?'<span class="pill pill-g">✅ 已超额</span>':p>=80?'<span class="pill pill-b">🔥 冲刺中</span>':'<span class="pill pill-r">⚡ 加速中</span>';
+    document.getElementById(id).innerHTML=`
+      <div class="ring-svg-wrap">
+        <svg width="110" height="110" viewBox="0 0 110 110">
+          <circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="#1e2540" stroke-width="9"/>
+          <circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="${color}" stroke-width="9"
+            stroke-dasharray="${d.toFixed(1)} ${c.toFixed(1)}" stroke-linecap="round"/>
+        </svg>
+        <div class="ring-center">
+          <div class="ring-pct" style="color:${color}">${p.toFixed(1)}%</div>
+          <div class="ring-lbl">完成率</div>
+        </div>
+      </div>
+      <div class="ring-meta">
+        <div class="rm-row"><span class="rm-key">已完成</span><span class="rm-val" style="color:${color}">${W(cur)}</span></div>
+        <div class="rm-row"><span class="rm-key">月度目标</span><span class="rm-val">${W(tgt)}</span></div>
+        <div class="rm-row"><span class="rm-key">距目标</span><span class="rm-val" style="color:${rem>0?'#ffb74d':'#69f0ae'}">${rem>0?W(rem):'超额 '+W(-rem)}</span></div>
+        <div class="rm-row"><span class="rm-key">预算</span><span class="rm-val">${W(bgt)}</span></div>
+        ${extraRows}
+        <div class="rm-row"><span class="rm-key">状态</span><span class="rm-val">${status}</span></div>
+      </div>`;
+  }
+  ring('ring-zy', MONTH_ZY, TGT_ZY, BGT_ZY, '#69f0ae',
+    `<div class="rm-row"><span class="rm-key">实际消耗</span><span class="rm-val c-green">${W(MONTH_COST)}</span></div>
+     <div class="rm-row"><span class="rm-key">综合ROI</span><span class="rm-val c-yellow">${MONTH_ROI}</span></div>`);
+  // 达人进度：综合ROI = 已完成 / 预算
+  const MONTH_DR_COST = daily.reduce((s,r)=>s+r.drC,0);
+  const DR_ROI = MONTH_DR_COST>0?(MONTH_DR/MONTH_DR_COST).toFixed(2):'-';
+  ring('ring-dr', MONTH_DR, TGT_DR, BGT_DR, '#ff7070',
+    `<div class="rm-row"><span class="rm-key">实际消耗</span><span class="rm-val c-green">${W(MONTH_DR_COST)}</span></div>
+     <div class="rm-row"><span class="rm-key">综合ROI</span><span class="rm-val c-yellow">${DR_ROI}</span></div>`);
+
+  window._MONTH_DR_COST = MONTH_DR_COST;
+  window._DR_ROI = DR_ROI;
+
+  // ---- 趋势图 ----
+  destroyChart('trend');
+  charts['trend'] = new Chart(document.getElementById('trendC').getContext('2d'),{
+    type:'bar',
+    data:{
+      labels:daily.map(r=>r.isNew?r.d+'✦':r.d),
+      datasets:[
+        {label:'自营成交',data:daily.map(r=>r.zyG),backgroundColor:daily.map(r=>r.isNew?'rgba(68,255,138,.8)':'rgba(68,138,255,.75)'),borderRadius:3,stack:'s'},
+        {label:'达人成交',data:daily.map(r=>r.drG),backgroundColor:daily.map(r=>r.isNew?'rgba(255,200,68,.8)':'rgba(255,107,107,.75)'),borderRadius:3,stack:'s'},
+      ]
+    },
+    options:{
+      responsive:true,maintainAspectRatio:false,
+      plugins:{
+        legend:{labels:{color:'#8892a4',font:{size:11}}},
+        tooltip:{callbacks:{label:ctx=>`${ctx.dataset.label}: ¥${num(ctx.raw)}`}}
+      },
+      scales:{
+        x:{stacked:true,ticks:{color:'#6b7a99',font:{size:10}},grid:{color:'#1a1e30'}},
+        y:{stacked:true,ticks:{color:'#6b7a99',callback:v=>v>=10000?(v/10000).toFixed(0)+'万':v},grid:{color:'#1a1e30'}},
+      }
+    }
+  });
+  window._trendInst = charts['trend'];
+
+  // ---- 周柱图 ----
+  destroyChart('week');
+  charts['week'] = new Chart(document.getElementById('weekC').getContext('2d'),{
+    type:'bar',
+    data:{
+      labels:weekData.map(w=>w.label.split(' ')[0]),
+      datasets:[
+        {label:'自营',data:weekData.map(w=>w.zyG),backgroundColor:'rgba(68,138,255,.8)',borderRadius:4},
+        {label:'达人',data:weekData.map(w=>w.drG),backgroundColor:'rgba(255,107,107,.8)',borderRadius:4},
+      ]
+    },
+    options:{
+      responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{labels:{color:'#8892a4',font:{size:11}}},
+        tooltip:{callbacks:{label:ctx=>`${ctx.dataset.label}: ¥${(ctx.raw/10000).toFixed(2)}万`}}
+      },
+      scales:{
+        x:{ticks:{color:'#6b7a99'},grid:{color:'#1a1e30'}},
+        y:{ticks:{color:'#6b7a99',callback:v=>(v/10000).toFixed(0)+'万'},grid:{color:'#1a1e30'}},
+      }
+    }
+  });
+
+  // ---- 产品饼图 ----
+  destroyChart('pie');
+  charts['pie'] = new Chart(document.getElementById('pieC').getContext('2d'),{
+    type:'doughnut',
+    data:{labels:PRODS,datasets:[{data:PRODS.map(p=>prodTotals[p]||0),backgroundColor:COLORS,borderWidth:2,borderColor:'#141728'}]},
+    options:{
+      responsive:true,maintainAspectRatio:false,
+      plugins:{
+        legend:{position:'right',labels:{color:'#8892a4',font:{size:11},padding:6}},
+        tooltip:{callbacks:{label:ctx=>`${ctx.label}: ${W(ctx.raw)} (${MONTH_ZY>0?(ctx.raw/MONTH_ZY*100).toFixed(1):0}%)`}}
+      }
+    }
+  });
+
+  // ---- 占比折线 ----
+  destroyChart('ratio');
+  charts['ratio'] = new Chart(document.getElementById('ratioC').getContext('2d'),{
+    type:'line',
+    data:{
+      labels:daily.map(r=>r.d),
+      datasets:[
+        {label:'自营占比',data:daily.map(r=>r.totG>0?+(r.zyG/r.totG*100).toFixed(1):0),
+          borderColor:'#448aff',backgroundColor:'rgba(68,138,255,.08)',fill:true,tension:.3,pointRadius:2,yAxisID:'y'},
+        {label:'达人占比',data:daily.map(r=>r.totG>0?+(r.drG/r.totG*100).toFixed(1):0),
+          borderColor:'#ff6b6b',backgroundColor:'rgba(255,107,107,.08)',fill:true,tension:.3,pointRadius:2,yAxisID:'y'},
+      ]
+    },
+    options:{
+      responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{labels:{color:'#8892a4',font:{size:11}}}},
+      scales:{
+        x:{ticks:{color:'#6b7a99',font:{size:10}},grid:{color:'#1a1e30'}},
+        y:{min:0,max:100,ticks:{color:'#6b7a99',callback:v=>v+'%'},grid:{color:'#1a1e30'}},
+      }
+    }
+  });
+
+  // ---- 堆叠图 ----
+  destroyChart('stack');
+  charts['stack'] = new Chart(document.getElementById('stackC').getContext('2d'),{
+    type:'bar',
+    data:{
+      labels:daily.map(r=>r.d),
+      datasets:PRODS.map((p,i)=>({
+        label:p,
+        data:daily.map(r=>r.zyGmvObj?.[p]||0),
+        backgroundColor:COLORS[i]+'aa',
+        borderRadius:2,stack:'p',
+      }))
+    },
+    options:{
+      responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{labels:{color:'#8892a4',font:{size:10},padding:5,boxWidth:10}}},
+      scales:{
+        x:{stacked:true,ticks:{color:'#6b7a99',font:{size:9}},grid:{color:'#1a1e30'}},
+        y:{stacked:true,ticks:{color:'#6b7a99',callback:v=>v>=10000?(v/10000).toFixed(0)+'万':v},grid:{color:'#1a1e30'}},
+      }
+    }
+  });
+
+  // ---- 表格状态 ----
+  window._daily = daily;
+  window._weekData = weekData;
+  window._prodTotals = prodTotals;
+  window._MONTH_ZY = MONTH_ZY;
+  window._MONTH_DR = MONTH_DR;
+  window._MONTH_TOT = MONTH_TOT;
+  window._MONTH_COST = MONTH_COST;
+  window._MONTH_ROI = MONTH_ROI;
+  window._TGT_ZY = TGT_ZY;
+  window._TGT_DR = TGT_DR;
+  window._zyPct = zyPct;
+  window._drPct = drPct;
+  window._weeks = weeks;
+  window._monthName = mn;
+  renderTbl(window._curTbl||'day');
+}
+
+// ================================================================
+// 趋势切换
+// ================================================================
+window.switchTrend=function(type,el){
+  document.querySelectorAll('#trend-tabs .tab').forEach(t=>t.classList.remove('on'));
+  el.classList.add('on');
+  if(window._trendInst){
+    window._trendInst.data.datasets[0].hidden=(type==='dr');
+    window._trendInst.data.datasets[1].hidden=(type==='zy');
+    window._trendInst.update();
+  }
+};
+
+// ================================================================
+// 表格
+// ================================================================
+window._curTbl='day';
+window.switchTbl=function(type,el){
+  document.querySelectorAll('#tbl-tabs .tab').forEach(t=>t.classList.remove('on'));
+  el.classList.add('on');
+  window._curTbl=type; renderTbl(type);
+};
+
+function renderTbl(type){
+  const daily=window._daily||[], weekData=window._weekData||[], prodTotals=window._prodTotals||{};
+  const MONTH_ZY=window._MONTH_ZY||0, MONTH_DR=window._MONTH_DR||0;
+  const MONTH_TOT=window._MONTH_TOT||0, MONTH_COST=window._MONTH_COST||0;
+  const MONTH_ROI=window._MONTH_ROI||'-', zyPct=window._zyPct||0, drPct=window._drPct||0;
+  const weeks=window._weeks||[];
+  const TGT_ZY=window._TGT_ZY||770000, TGT_DR=window._TGT_DR||660000;
+  const mn=window._monthName||'本月';
+  const el=document.getElementById('tbl');
+
+  if(type==='day'){
+    let cumZ=0,cumD=0,lastWk=-1;
+    const wkMap={};
+    weeks.forEach((w,i)=>w.dates.forEach(d=>wkMap[d]=i));
+    let rows=`<table><thead><tr>
+      <th>日期</th><th>自营成交</th><th>达人成交</th><th>合计成交</th>
+      <th>自营占比</th><th>达人占比</th><th>自营消耗</th><th>自营ROI</th>
+      <th>自营累计</th><th>自营进度</th><th>达人累计</th><th>达人进度</th>
+    </tr></thead><tbody>`;
+    daily.forEach(r=>{
+      const wk=wkMap[r.d]??-2;
+      if(wk!==lastWk){
+        const wd=weeks[wk];
+        if(wd){
+          const wdays=daily.filter(x=>wd.dates.includes(x.d));
+          const wz=wdays.reduce((s,x)=>s+x.zyG,0);
+          const wd2=wdays.reduce((s,x)=>s+x.drG,0);
+          rows+=`<tr class="wk-row"><td colspan="4">${wd.label}</td>
+            <td colspan="4">周自营：${W(wz)} | 周达人：${W(wd2)}</td>
+            <td colspan="4">周合计：${W(wz+wd2)}</td></tr>`;
+        }
+        lastWk=wk;
+      }
+      cumZ+=r.zyG; cumD+=r.drG;
+      const zp=r.totG>0?(r.zyG/r.totG*100).toFixed(1):'0';
+      const dp=r.totG>0?(r.drG/r.totG*100).toFixed(1):'0';
+      const zprog=(cumZ/TGT_ZY*100).toFixed(1);
+      const dprog=(cumD/TGT_DR*100).toFixed(1);
+      const newMark=r.isNew?'<span class="new-badge"></span>':'';
+      rows+=`<tr>
+        <td class="c-blue">${r.d}${newMark}</td>
+        <td>¥${W(r.zyG)}</td><td>¥${W(r.drG)}</td>
+        <td class="c-yellow">¥${W(r.totG)}</td>
+        <td>${zp}%</td><td>${dp}%</td>
+        <td>¥${W(r.zyC)}</td>
+        <td class="c-green">${r.roi}</td>
+        <td class="c-green">¥${W(cumZ)}</td>
+        <td>${zprog>=100?'<span class="pill pill-g">'+zprog+'%</span>':'<span class="pill pill-b">'+zprog+'%</span>'}</td>
+        <td class="c-red">¥${W(cumD)}</td>
+        <td>${dprog>=100?'<span class="pill pill-g">'+dprog+'%</span>':'<span class="pill pill-y">'+dprog+'%</span>'}</td>
+      </tr>`;
+    });
+    rows+=`<tr class="sum-row">
+      <td class="c-orange">${mn}合计</td>
+      <td class="c-green">¥${W(MONTH_ZY)}</td><td class="c-red">¥${W(MONTH_DR)}</td>
+      <td class="c-yellow">¥${W(MONTH_TOT)}</td>
+      <td>${MONTH_TOT>0?(MONTH_ZY/MONTH_TOT*100).toFixed(1):0}%</td>
+      <td>${MONTH_TOT>0?(MONTH_DR/MONTH_TOT*100).toFixed(1):0}%</td>
+      <td>¥${W(MONTH_COST)}</td><td class="c-green">${MONTH_ROI}</td>
+      <td>-</td><td><span class="pill ${parseFloat(zyPct)>=100?'pill-g':'pill-b'}">${zyPct}%</span></td>
+      <td>-</td><td><span class="pill ${parseFloat(drPct)>=100?'pill-g':'pill-y'}">${drPct}%</span></td>
+    </tr></tbody></table>`;
+    el.innerHTML=rows;
+  }
+  else if(type==='week'){
+    let cumZ=0,cumD=0;
+    let rows=`<table><thead><tr>
+      <th>周期</th><th>自营成交</th><th>达人成交</th><th>合计成交</th>
+      <th>自营占比</th><th>达人占比</th><th>自营消耗</th><th>自营ROI</th>
+      <th>自营累计进度</th><th>达人累计进度</th>
+    </tr></thead><tbody>`;
+    weekData.forEach(w=>{
+      cumZ+=w.zyG; cumD+=w.drG;
+      rows+=`<tr>
+        <td class="c-blue">${w.label}</td>
+        <td class="c-green">¥${W(w.zyG)}</td><td class="c-red">¥${W(w.drG)}</td>
+        <td class="c-yellow">¥${W(w.tot)}</td>
+        <td>${w.tot>0?(w.zyG/w.tot*100).toFixed(1):'0'}%</td>
+        <td>${w.tot>0?(w.drG/w.tot*100).toFixed(1):'0'}%</td>
+        <td>¥${W(w.zyC)}</td><td class="c-green">${w.roi}</td>
+        <td><span class="pill pill-b">${(cumZ/TGT_ZY*100).toFixed(1)}%</span></td>
+        <td><span class="pill pill-y">${(cumD/TGT_DR*100).toFixed(1)}%</span></td>
+      </tr>`;
+    });
+    rows+=`<tr class="sum-row">
+      <td class="c-orange">${mn}合计</td>
+      <td class="c-green">¥${W(MONTH_ZY)}</td><td class="c-red">¥${W(MONTH_DR)}</td>
+      <td class="c-yellow">¥${W(MONTH_TOT)}</td>
+      <td>${MONTH_TOT>0?(MONTH_ZY/MONTH_TOT*100).toFixed(1):0}%</td>
+      <td>${MONTH_TOT>0?(MONTH_DR/MONTH_TOT*100).toFixed(1):0}%</td>
+      <td>¥${W(MONTH_COST)}</td><td class="c-green">${MONTH_ROI}</td>
+      <td><span class="pill ${parseFloat(zyPct)>=100?'pill-g':'pill-b'}">${zyPct}%</span></td>
+      <td><span class="pill ${parseFloat(drPct)>=100?'pill-g':'pill-y'}">${drPct}%</span></td>
+    </tr></tbody></table>`;
+    el.innerHTML=rows;
+  }
+  else{
+    const sorted=[...PRODS].sort((a,b)=>(prodTotals[b]||0)-(prodTotals[a]||0));
+    let rows=`<table><thead><tr>
+      <th>产品</th><th>${mn}总成交</th><th>自营占比</th><th>周均成交</th><th>日均成交</th>
+      <th>最高单日</th><th>最低单日(有效)</th><th>有效天数</th>
+    </tr></thead><tbody>`;
+    sorted.forEach(p=>{
+      const vals=daily.map(r=>r.zyGmvObj?.[p]||0);
+      const tot=prodTotals[p]||0;
+      const maxV=Math.max(...vals,0);
+      const effVals=vals.filter(v=>v>0);
+      const minV=effVals.length>0?Math.min(...effVals):0;
+      rows+=`<tr>
+        <td><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${PROD_COLORS[p]};margin-right:6px;vertical-align:middle"></span>${p}</td>
+        <td class="c-green">¥${W(tot)}</td>
+        <td><span class="pill pill-b">${MONTH_ZY>0?(tot/MONTH_ZY*100).toFixed(1):0}%</span></td>
+        <td>¥${W(tot/4)}</td>
+        <td>¥${W2(tot/(daily.length||1))}</td>
+        <td class="c-yellow">¥${W(maxV)}</td>
+        <td class="c-red">¥${minV>0?W2(minV):'-'}</td>
+        <td>${effVals.length}天</td>
+      </tr>`;
+    });
+    rows+=`<tr class="sum-row">
+      <td class="c-orange">合计（自营）</td>
+      <td class="c-green">¥${W(MONTH_ZY)}</td>
+      <td>100%</td>
+      <td colspan="5">ROI均值 ${MONTH_ROI} | 消耗 ¥${W(MONTH_COST)}</td>
+    </tr></tbody></table>`;
+    el.innerHTML=rows;
+  }
+}
+
+// ================================================================
+// 录入弹窗
+// ================================================================
+let _editDate = null;
+
+function openModal(mode) {
+  const overlay = document.getElementById('modal-overlay');
+  overlay.classList.add('open');
+  document.getElementById('panel-add').style.display = mode==='add'||mode==='targets'&&false ? '' : 'none';
+  document.getElementById('panel-manage').style.display = mode==='manage' ? '' : 'none';
+  document.getElementById('panel-targets').style.display = mode==='targets' ? '' : 'none';
+
+  const mn = monthName();
+
+  if(mode === 'add') {
+    initDateSelect();
+  } else if(mode === 'manage') {
+    renderHistoryPanels();
+  } else if(mode === 'targets') {
+    const saved = loadTargets();
+    const md = MONTH_DATA[CUR_MONTH] || { DEFAULT_TARGETS: { TGT_ZY:500000,TGT_DR:500000,BGT_ZY:200000,BGT_DR:200000 } };
+    const tgt = saved || md.DEFAULT_TARGETS;
+    document.getElementById('tgt-zy').value = tgt.TGT_ZY || '';
+    document.getElementById('tgt-dr').value = tgt.TGT_DR || '';
+    document.getElementById('tgt-zy-cost').value = tgt.BGT_ZY || '';
+    document.getElementById('tgt-dr-cost').value = tgt.BGT_DR || '';
+  }
+}
+
+function closeModal() {
+  document.getElementById('modal-overlay').classList.remove('open');
+  _editDate = null;
+}
+
+function closeModalOverlay(e) {
+  if(e.target === document.getElementById('modal-overlay')) closeModal();
+}
+
+// 初始化日期下拉（根据当前月份动态生成）
+function initDateSelect() {
+  const mn = monthName();
+  const sel = document.getElementById('inp-date');
+  const label = document.getElementById('inp-month-label');
+  label.textContent = mn;
+  const tip = document.getElementById('month-tip');
+  const tipName = document.getElementById('tip-month-name');
+  tip.style.display = '';
+  tipName.textContent = mn;
+
+  sel.innerHTML = '<option value="">-- 选择日期 --</option>';
+  const extra = loadExtra();
+  const baseGmv = getBaseGmv();
+  const md = MONTH_DATA[CUR_MONTH] || { daysInMonth: 30 };
+  const monthNum = CUR_MONTH.replace('m','');
+
+  for(let d=1; d<=md.daysInMonth; d++){
+    const key = `${monthNum}/${d}`;
+    const isBase = !!baseGmv[key];
+    const isExtra = !!extra[key];
+    const opt = document.createElement('option');
+    opt.value = key;
+    opt.textContent = `${mn.replace('月','')}月${d}日${isExtra?'✓已录入':isBase?'(历史)':''}`;
+    sel.appendChild(opt);
+  }
+
+  // 默认选今日
+  const today = new Date();
+  const todayKey = `${today.getMonth()+1}/${today.getDate()}`;
+  if(today.getMonth()+1 === parseInt(monthNum) && sel.querySelector(`option[value="${todayKey}"]`)) {
+    sel.value = todayKey;
+  } else {
+    sel.value = `${monthNum}/1`;
+  }
+  onDateChange();
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  function buildProdGrid(containerId, prefix) {
+    const grid = document.getElementById(containerId);
+    grid.innerHTML = '';
+    PRODS.forEach(p => {
+      const div = document.createElement('div');
+      div.className = 'prod-item';
+      div.innerHTML = `<div class="prod-item-label"><span class="prod-item-dot" style="background:${PROD_COLORS[p]}"></span>${p}</div>
+        <input type="number" id="${prefix}-${p}" placeholder="0.00" min="0" step="0.01" oninput="onProdInput()">`;
+      grid.appendChild(div);
+    });
+  }
+  buildProdGrid('prod-gmv-grid', 'gmv');
+  buildProdGrid('prod-dr-gmv-grid', 'dr-gmv');
+
+  document.getElementById('inp-date').addEventListener('change', onDateChange);
+  document.getElementById('inp-dr-gmv').addEventListener('input', updateTotalPreview);
+  document.getElementById('inp-dr-cost').addEventListener('input', updateTotalPreview);
+
+  // 恢复当前月份设置
+  const savedTgt = loadTargets();
+  const md = MONTH_DATA[CUR_MONTH] || { DEFAULT_TARGETS: { TGT_ZY:770000,TGT_DR:660000,BGT_ZY:280000,BGT_DR:250000 } };
+  CUR_TGT = savedTgt || md.DEFAULT_TARGETS;
+
+  updateMonthSelector();
+  refreshAll();
+});
+
+function onDateChange() {
+  const d = document.getElementById('inp-date').value;
+  if(!d) return;
+  const extra = loadExtra();
+  const baseGmv = getBaseGmv();
+  const baseCost = getBaseCost();
+  const baseTotal = getBaseTotal();
+  const status = document.getElementById('date-status');
+
+  if(extra[d]) {
+    const ex = extra[d];
+    document.getElementById('inp-dr-gmv').value = ex.drGmv||'';
+    document.getElementById('inp-dr-cost').value = ex.drCost||'';
+    document.getElementById('inp-total-gmv').value = ex.totalGmv||'';
+    document.getElementById('inp-total-cost').value = ex.totalCost||'';
+    PRODS.forEach(p => {
+      document.getElementById(`gmv-${p}`).value = ex.prods?.[p]||'';
+      document.getElementById(`dr-gmv-${p}`).value = ex.drProds?.[p]||'';
+      const c=document.getElementById(`cost-${p}`);
+      if(c) c.value = ex.costs?.[p]||'';
+    });
+    status.innerHTML = '🔵 <span style="color:#64b5f6">已有录入数据，可修改覆盖</span>';
+  } else if(baseGmv[d]) {
+    PRODS.forEach(p => {
+      document.getElementById(`gmv-${p}`).value = baseGmv[d][p]||'';
+      document.getElementById(`dr-gmv-${p}`).value = '';
+      const c=document.getElementById(`cost-${p}`);
+      if(c) c.value = baseCost[d]?.[p]||'';
+    });
+    document.getElementById('inp-dr-gmv').value = '';
+    document.getElementById('inp-dr-cost').value = '';
+    document.getElementById('inp-total-gmv').value = baseTotal[d]||'';
+    document.getElementById('inp-total-cost').value = '';
+    status.innerHTML = '🟡 <span style="color:#ffd740">历史基础数据，可新增达人数据</span>';
+  } else {
+    clearForm(true);
+    status.innerHTML = '🟢 <span style="color:#69f0ae">新日期，请填写完整数据</span>';
+  }
+  onProdInput();
+  updateTotalPreview();
+}
+
+function onProdInput() {
+  let gmvSum=0;
+  PRODS.forEach(p=>{
+    gmvSum += +(document.getElementById(`gmv-${p}`)?.value||0);
+  });
+  document.getElementById('inp-zy-gmv-total').value  = gmvSum.toFixed(2);
+  // 自营消耗来自 BASE_ZY_COST，不在录入弹窗维护，只显示成交ROI暂不计算
+  document.getElementById('zy-roi-preview').textContent = '';
+  updateTotalPreview();
+}
+
+function updateTotalPreview() {
+  const zyGmv  = +(document.getElementById('inp-zy-gmv-total')?.value||0);
+  const drGmv  = +(document.getElementById('inp-dr-gmv')?.value||0);
+  const zyCost = +(document.getElementById('inp-zy-cost-total')?.value||0);
+  const drCost = +(document.getElementById('inp-dr-cost')?.value||0);
+  const manualTotal     = +(document.getElementById('inp-total-gmv')?.value||0);
+  const manualTotalCost = +(document.getElementById('inp-total-cost')?.value||0);
+
+  // 总成交预览
+  if(manualTotal>0){
+    document.getElementById('total-preview').textContent = `后台总成交: ¥${num(manualTotal)}`;
+  } else {
+    const auto = zyGmv+drGmv;
+    document.getElementById('total-preview').textContent = auto>0?`自动合计: ¥${num(auto)}`:'';
+  }
+  // 总消耗预览
+  if(manualTotalCost>0){
+    document.getElementById('total-cost-preview').textContent = `后台总消耗: ¥${num(manualTotalCost)}`;
+  } else {
+    const autoCost = zyCost+drCost;
+    document.getElementById('total-cost-preview').textContent = autoCost>0?`自动合计: ¥${num(autoCost)}`:'';
+  }
+}
+
+function clearForm(skipDate) {
+  if(!skipDate) document.getElementById('inp-date').value='';
+  document.getElementById('inp-dr-gmv').value='';
+  document.getElementById('inp-dr-cost').value='';
+  document.getElementById('inp-zy-gmv-total').value='';
+  document.getElementById('inp-zy-cost-total').value='';
+  document.getElementById('inp-total-gmv').value='';
+  document.getElementById('inp-total-cost').value='';
+  document.getElementById('zy-roi-preview').textContent='';
+  document.getElementById('total-preview').textContent='';
+  document.getElementById('total-cost-preview').textContent='';
+  document.getElementById('date-status').textContent='';
+  PRODS.forEach(p=>{
+    const g=document.getElementById(`gmv-${p}`);
+    const dg=document.getElementById(`dr-gmv-${p}`);
+    const c=document.getElementById(`cost-${p}`);
+    if(g) g.value='';
+    if(dg) dg.value='';
+    if(c) c.value='';
+  });
+}
+
+function saveEntry() {
+  const d = document.getElementById('inp-date').value;
+  if(!d){ showToast('请先选择日期', true); return; }
+
+  const prods={}, drProds={}, costs={};
+  PRODS.forEach(p=>{
+    prods[p]   = +(document.getElementById(`gmv-${p}`)?.value||0);
+    drProds[p] = +(document.getElementById(`dr-gmv-${p}`)?.value||0);
+    const c=document.getElementById(`cost-${p}`);
+    if(c) costs[p] = +(c.value||0);
+  });
+
+  const drGmv     = +(document.getElementById('inp-dr-gmv').value||0);
+  const drCost    = +(document.getElementById('inp-dr-cost').value||0);
+  const totalGmv  = +(document.getElementById('inp-total-gmv').value||0);
+  const totalCost = +(document.getElementById('inp-total-cost').value||0);
+
+  const entry = { drGmv, drCost, prods, drProds, costs };
+  if(totalGmv>0)  entry.totalGmv  = totalGmv;
+  if(totalCost>0) entry.totalCost = totalCost;
+  entry._savedAt = new Date().toLocaleString('zh-CN');
+
+  const extra = loadExtra();
+  extra[d] = entry;
+  saveExtra(extra);
+
+  // 更新月份选择器
+  updateMonthSelector();
+
+  closeModal();
+  refreshAll();
+  showToast(`✅ ${d} 数据已保存，${monthName()}看板已更新！`);
+}
+
+// ================================================================
+// 目标设置
+// ================================================================
+window.saveTargets = function() {
+  const tgt = {
+    TGT_ZY: +(document.getElementById('tgt-zy').value||0),
+    TGT_DR: +(document.getElementById('tgt-dr').value||0),
+    BGT_ZY: +(document.getElementById('tgt-zy-cost').value||0),
+    BGT_DR: +(document.getElementById('tgt-dr-cost').value||0),
+  };
+  if(!tgt.TGT_ZY || !tgt.TGT_DR){ showToast('请填写成交目标', true); return; }
+  CUR_TGT = tgt;
+  saveTargetsToLs(tgt);
+  closeModal();
+  refreshAll();
+  showToast(`🎯 ${monthName()}目标已保存！`);
+};
+
+// ================================================================
+// 管理面板
+// ================================================================
+let _mgmtCur = 'new';
+window.switchMgmt = function(panel, el) {
+  document.querySelectorAll('.mgmt-tab').forEach(t=>t.classList.remove('on'));
+  el.classList.add('on');
+  _mgmtCur=panel;
+  document.getElementById('mgmt-panel-new').style.display=panel==='new'?'':'none';
+  document.getElementById('mgmt-panel-all').style.display=panel==='all'?'':'none';
+  document.getElementById('mgmt-panel-import').style.display=panel==='import'?'':'none';
+};
+
+function renderHistoryPanels() {
+  const extra = loadExtra();
+  const extraDates = Object.keys(extra).sort((a,b)=>{
+    const [ma,da]=a.split('/').map(Number);
+    const [mb,db]=b.split('/').map(Number);
+    return ma!==mb?ma-mb:da-db;
+  });
+
+  const newList = document.getElementById('history-new');
+  if(!extraDates.length){
+    newList.innerHTML='<div style="color:#2a3050;text-align:center;padding:30px">暂无新录数据</div>';
+  } else {
+    newList.innerHTML = extraDates.map(d=>{
+      const ex=extra[d];
+      const zyG=Object.values(ex.prods||{}).reduce((s,v)=>s+v,0);
+      const drG=ex.drGmv||0;
+      return `<div class="history-item">
+        <div class="history-date">${d}</div>
+        <div class="history-vals">
+          <span class="hv-zy">自营: ¥${W(zyG)}</span>
+          <span class="hv-dr">达人: ¥${W(drG)}</span>
+          <span style="color:#3a4260">${ex._savedAt||''}</span>
+        </div>
+        <button class="history-edit" onclick="editEntry('${d}')">编辑</button>
+        <button class="history-del"  onclick="deleteEntry('${d}')">删除</button>
+      </div>`;
+    }).join('');
+  }
+
+  const daily = buildDaily();
+  const allList = document.getElementById('history-all');
+  allList.innerHTML = daily.map(r=>`<div class="history-item">
+    <div class="history-date">${r.d}${r.isNew?'<span class="new-badge"></span>':''}</div>
+    <div class="history-vals">
+      <span class="hv-zy">自营: ¥${W(r.zyG)}</span>
+      <span class="hv-dr">达人: ¥${W(r.drG)}</span>
+      <span>消耗: ¥${W(r.zyC)}</span>
+      <span style="color:#ffd740">ROI: ${r.roi}</span>
+    </div>
+    ${r.isNew?`<button class="history-edit" onclick="editEntry('${r.d}')">编辑</button>
+    <button class="history-del" onclick="deleteEntry('${r.d}')">删除</button>`:'<span style="font-size:11px;color:#2a3050">历史</span>'}
+  </div>`).join('');
+}
+
+window.editEntry = function(d) {
+  _editDate = d;
+  openModal('add');
+  setTimeout(()=>{
+    document.getElementById('inp-date').value=d;
+    onDateChange();
+  },50);
+};
+
+window.deleteEntry = function(d) {
+  if(!confirm(`确认删除 ${d} 的录入数据？（历史基础数据不受影响）`)) return;
+  const extra = loadExtra();
+  delete extra[d];
+  saveExtra(extra);
+  updateMonthSelector();
+  renderHistoryPanels();
+  refreshAll();
+  showToast(`🗑 ${d} 录入数据已删除`);
+};
+
+window.clearAllNew = function() {
+  if(!confirm(`确认清空${monthName()}所有新录数据？将恢复初始状态。`)) return;
+  localStorage.removeItem(lsKey('extra'));
+  updateMonthSelector();
+  renderHistoryPanels();
+  refreshAll();
+  showToast('已清空当月全部新录数据');
+};
+
+window.exportData = function() {
+  const extra = loadExtra();
+  const meta = { _month: CUR_MONTH, _monthName: monthName(), _exportedAt: new Date().toISOString() };
+  const obj = { ...meta, ...extra };
+  const json = JSON.stringify(obj, null, 2);
+  const blob = new Blob([json], {type:'application/json'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `qc_data_${CUR_MONTH}_${new Date().toISOString().slice(0,10)}.json`;
+  a.click();
+  showToast(`📤 ${monthName()}数据已导出`);
+};
+
+window.importJson = function() {
+  const raw = document.getElementById('import-json').value.trim();
+  if(!raw){ showToast('请粘贴 JSON 数据', true); return; }
+  try {
+    const obj = JSON.parse(raw);
+    // 过滤掉 _ 开头元数据字段
+    const extra = loadExtra();
+    let cnt=0;
+    Object.keys(obj).forEach(d=>{
+      if(d.startsWith('_')) return;
+      extra[d] = obj[d]; cnt++;
+    });
+    if(cnt===0){ showToast('未找到有效数据，请检查格式', true); return; }
+    saveExtra(extra);
+    document.getElementById('import-json').value='';
+    updateMonthSelector();
+    renderHistoryPanels();
+    refreshAll();
+    showToast(`✅ 已导入 ${cnt} 条数据！`);
+  } catch(e) {
+    showToast('JSON 格式错误，请检查', true);
+  }
+};
+
+// ================================================================
+// Toast
+// ================================================================
+let _toastTimer=null;
+function showToast(msg, isErr) {
+  const el=document.getElementById('toast');
+  el.textContent=msg;
+  el.className='toast'+(isErr?' err':'');
+  el.classList.add('show');
+  if(_toastTimer) clearTimeout(_toastTimer);
+  _toastTimer=setTimeout(()=>el.classList.remove('show'),3000);
+}
+
+// FAB 提示自动隐藏
+setTimeout(()=>{
+  const tip=document.getElementById('fab-tip');
+  if(tip) tip.style.opacity='0';
+}, 4000);
+</script>
+</body>
+</html>
