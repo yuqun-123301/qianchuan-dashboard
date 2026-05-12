@@ -1125,7 +1125,8 @@ function renderTbl(type){
   const daily=window._daily||[], weekData=window._weekData||[], prodTotals=window._prodTotals||{};
   const MONTH_ZY=window._MONTH_ZY||0, MONTH_DR=window._MONTH_DR||0;
   const MONTH_TOT=window._MONTH_TOT||0, MONTH_COST=window._MONTH_COST||0;
-  const MONTH_ROI=window._MONTH_ROI||'-', zyPct=window._zyPct||0, drPct=window._drPct||0;
+  const MONTH_ZY_COST=window._MONTH_ZY_COST||0, MONTH_DR_COST=window._MONTH_DR_COST||0;
+  const MONTH_ROI=window._MONTH_ROI||'-', DR_ROI=window._DR_ROI||'-', zyPct=window._zyPct||0, drPct=window._drPct||0;
   const weeks=window._weeks||[];
   const TGT_ZY=window._TGT_ZY||770000, TGT_DR=window._TGT_DR||660000;
   const mn=window._monthName||'本月';
@@ -1180,8 +1181,8 @@ function renderTbl(type){
       <td class="c-yellow">¥${W(MONTH_TOT)}</td>
       <td>${MONTH_TOT>0?(MONTH_ZY/MONTH_TOT*100).toFixed(1):0}%</td>
       <td>${MONTH_TOT>0?(MONTH_DR/MONTH_TOT*100).toFixed(1):0}%</td>
-      <td>¥${W(window._MONTH_ZY_COST||0)}</td><td>¥${W(window._MONTH_DR_COST||0)}</td>
-      <td class="c-green">${MONTH_ROI}</td><td class="c-red">${window._DR_ROI||'-'}</td>
+      <td>¥${W(MONTH_ZY_COST)}</td><td>¥${W(MONTH_DR_COST)}</td>
+      <td class="c-green">${MONTH_ROI}</td><td class="c-red">${DR_ROI}</td>
       <td>-</td><td><span class="pill ${parseFloat(zyPct)>=100?'pill-g':'pill-b'}">${zyPct}%</span></td>
       <td>-</td><td><span class="pill ${parseFloat(drPct)>=100?'pill-g':'pill-y'}">${drPct}%</span></td>
     </tr></tbody></table>`;
