@@ -812,8 +812,10 @@ function buildDaily() {
     }
     // 达人成交：优先取录入的drProds之和，否则取drGmv字段，否则从总成交反推
     let drG = 0;
+    let drProds = {};
     if(ex?.drProds) {
-      drG = sumObj(ex.drProds);
+      drProds = ex.drProds;
+      drG = sumObj(drProds);
     } else if(ex?.drGmv) {
       drG = +(ex.drGmv);
     } else {
@@ -824,7 +826,7 @@ function buildDaily() {
     const drC = ex?.drCost ? +(ex.drCost) : 0;
     const totG = zyG + drG;
     const roi = zyC > 0 ? (zyG/zyC).toFixed(2) : '-';
-    return { d, zyG, zyC, drG, drC, totG, roi, zyGmvObj, isNew: !!ex };
+    return { d, zyG, zyC, drG, drC, totG, roi, zyGmvObj, drProds, isNew: !!ex };
   });
 }
 
